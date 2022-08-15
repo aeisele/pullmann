@@ -19,3 +19,10 @@ Amongst others this means:
   - Maven instead of Gradle
   - Spring Boot instead of dagger2 / guice
   - Template based frontend instead of JS-based SPA
+
+## Missing Stuff
+
+### I18N
+
+Strings are hardcoded to US english for now. Both Spring and Thymeleaf would support I18N via resource
+bundles though.
