@@ -21,17 +21,16 @@ Amongst others this means:
   - Template based frontend instead of JS-based SPA + API
   - no reactive paradigms
 
-### DD.2 `java.net.http` as HTTP Client
-
-As integration with GitHub is a crucial part of the business logic it should not be obscured by libraries.
-
-The underlying code is abstracted enough to facility an HTTP client change if necessary.
-
-In a bigger project integration of _contract-based_ techniques like _Feign_ and/or _OpenAPI_ might be
-chosen to enhance maintainability.
+### DD.2 _OkHttp_ as HTTP Client
 
 Spring _RestTemplate_ is out of the picture as it is practically deprecated in favor of _WebClient_.
 The latter won't be used as it only supports reactive interactions which are ruled out by _DD.1_.
+
+The JVM 11 `java.net.http` client would be a pragmatic first choice but it doesn't provide all the necessary
+features like preemptive authentication.
+
+In a bigger project integration of _contract-based_ techniques like _Feign_ and/or _OpenAPI_ would be
+chosen to enhance maintainability.
 
 ## Missing Stuff
 

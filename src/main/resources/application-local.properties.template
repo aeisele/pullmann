@@ -1,0 +1,8 @@
+# copy this to 'application-local.properties' for local dev
+# use spring profile 'local'
+
+spring.thymeleaf.cache=false
+spring.web.resources.chain.strategy.content.enabled=true
+spring.web.resources.chain.strategy.content.paths=/**
+
+pullman.github.log-level=body
