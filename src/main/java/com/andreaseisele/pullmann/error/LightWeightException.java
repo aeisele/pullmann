@@ -1,4 +1,4 @@
-package com.andreaseisele.pullmann.github.error;
+package com.andreaseisele.pullmann.error;
 
 /**
  * Exception where we are not interested in the stack trace.

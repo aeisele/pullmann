@@ -1,6 +1,6 @@
 package com.andreaseisele.pullmann.github.error;
 
-public class GitHubHttpStatusException extends LightWeightException {
+public class GitHubHttpStatusException extends GitHubException {
 
     private final int httpStatus;
 

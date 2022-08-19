@@ -38,8 +38,15 @@ public class GitHubClient {
         this.urls = urls;
     }
 
+    /**
+     * Authenticate via the given token and GET the current user.
+     * @param token token holding username and personal access token
+     * @return the resulting data, if successful
+     * @throws com.andreaseisele.pullmann.github.error.GitHubException on any error
+     */
     public UserResult currentUserViaToken(UsernamePasswordAuthenticationToken token) {
         final var credentials = buildCredentials(token);
+        final var accessToken = (String) token.getCredentials();
         final var url = urls.currentUser();
         final var request = new Request.Builder()
             .url(url)
@@ -51,6 +58,7 @@ public class GitHubClient {
             if (response.isSuccessful()) {
                 final var user = unmarshall(response.body(), User.class);
                 return UserResult.of(user,
+                    accessToken,
                     response.header(GitHubHeaders.OAUTH_SCOPES),
                     response.header(GitHubHeaders.TOKEN_EXPIRATION));
             } else {

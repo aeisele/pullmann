@@ -20,9 +20,13 @@ public class GitHubUrls {
     }
 
     private HttpUrl parseBaseUrl() {
-        final var parsed = HttpUrl.parse(properties.getBaseUrl());
+        return parseBaseUrl(properties.getBaseUrl());
+    }
+
+    static HttpUrl parseBaseUrl(String baseUrl) {
+        final var parsed = HttpUrl.parse(baseUrl);
         if (parsed == null) {
-            throw new GitHubInitException("unable to parse configured base URL");
+            throw new GitHubInitException("unable to parse configured base URL " + baseUrl);
         }
         return parsed;
     }

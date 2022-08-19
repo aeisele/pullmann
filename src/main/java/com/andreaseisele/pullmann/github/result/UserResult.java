@@ -1,5 +1,6 @@
 package com.andreaseisele.pullmann.github.result;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
 
 
@@ -26,17 +27,22 @@ public class UserResult {
     private final User user;
     private final Set<String> scopes;
     private final LocalDateTime tokenExpiry;
+    private final String accessToken;
 
-    private UserResult(User user, Set<String> scopes, LocalDateTime tokenExpiry) {
+    private UserResult(User user, Set<String> scopes, LocalDateTime tokenExpiry, String accessToken) {
         this.user = user;
         this.scopes = scopes;
         this.tokenExpiry = tokenExpiry;
+        this.accessToken = accessToken;
     }
 
-    public static UserResult of(User user, String scopeList, String tokenExpiry) {
+    public static UserResult of(User user, String accessToken, String scopeList, String tokenExpiry) {
+        requireNonNull(user, "user must not be null");
+        requireNonNull(accessToken, "access token must not be null");
+
         final var expiry = parseExpiry(tokenExpiry);
         final var scopes = parseScopeList(scopeList);
-        return new UserResult(user, scopes, expiry);
+        return new UserResult(user, scopes, expiry, accessToken);
     }
 
     static LocalDateTime parseExpiry(String tokenExpiry) {
@@ -69,6 +75,10 @@ public class UserResult {
 
     public LocalDateTime getTokenExpiry() {
         return tokenExpiry;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
     }
 
 }
