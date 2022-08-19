@@ -1,8 +1,6 @@
 package com.andreaseisele.pullmann.github.error;
 
-import com.andreaseisele.pullmann.error.LightWeightException;
-
-public class GitHubException extends LightWeightException {
+public class GitHubException extends RuntimeException {
 
     public GitHubException(String message) {
         super(message);
@@ -12,4 +10,9 @@ public class GitHubException extends LightWeightException {
         super(message, cause);
     }
 
+    // lightweight exception
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return this;
+    }
 }

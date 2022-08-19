@@ -1,5 +1,6 @@
 package com.andreaseisele.pullmann.security;
 
+import com.andreaseisele.pullmann.github.dto.User;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -9,16 +10,16 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 public class GitHubUserDetails implements UserDetails {
 
-    private final String username;
+    private final User user;
     private final String accessToken;
     private final Set<? extends GrantedAuthority> authorities;
     private final LocalDateTime expiry;
 
-    public GitHubUserDetails(String username,
+    public GitHubUserDetails(User user,
                              String accessToken,
                              Set<? extends GrantedAuthority> authorities,
                              LocalDateTime expiry) {
-        this.username = username;
+        this.user = user;
         this.accessToken = accessToken;
         this.authorities = authorities;
         this.expiry = expiry;
@@ -26,7 +27,7 @@ public class GitHubUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return username;
+        return user.name();
     }
 
     @Override
@@ -57,6 +58,14 @@ public class GitHubUserDetails implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
     }
 
 }

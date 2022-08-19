@@ -23,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -95,6 +96,31 @@ class GitHubClientIntegrationTest {
             .isInstanceOf(GitHubHttpStatusException.class)
             .hasMessageContaining("unexpected HTTP status code")
             .hasFieldOrPropertyWithValue("httpStatus", 401);
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void userRepos_ok() {
+        stubFor(get("/user/repos")
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile("user_repos.json")
+            )
+        );
+
+        final var repositories = gitHubClient.userRepos();
+
+        assertThat(repositories)
+            .hasSize(1)
+            .anySatisfy(repository -> {
+                assertThat(repository.id()).isEqualTo(1296269);
+                assertThat(repository.name()).isEqualTo("Hello-World");
+                assertThat(repository.fullName()).isEqualTo("octocat/Hello-World");
+                assertThat(repository.size()).isEqualTo(108);
+            });
     }
 
     private String expirationIn3Months() {

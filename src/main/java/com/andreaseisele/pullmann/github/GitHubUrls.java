@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 public class GitHubUrls {
 
     private static final String PATH_USER = "user";
+    private static final String PATH_USER_REPOS = "user/repos";
 
     private final GitHubProperties properties;
 
@@ -17,6 +18,10 @@ public class GitHubUrls {
 
     public HttpUrl currentUser() {
         return parseBaseUrl().resolve(PATH_USER);
+    }
+
+    public HttpUrl userRepos() {
+        return parseBaseUrl().resolve(PATH_USER_REPOS);
     }
 
     private HttpUrl parseBaseUrl() {

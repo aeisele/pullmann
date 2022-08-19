@@ -67,7 +67,7 @@ public class PatAuthenticationProvider implements AuthenticationProvider {
             .collect(Collectors.toSet());
 
         return new GitHubUserDetails(
-            user.name(),
+            user,
             result.getAccessToken(),
             authorities,
             result.getTokenExpiry()
