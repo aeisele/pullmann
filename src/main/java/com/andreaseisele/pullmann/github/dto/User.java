@@ -8,8 +8,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * See <a href="https://docs.github.com/en/rest/users/users">Documentation</a>
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-// naming strategy doesn't work with records currently...
-//@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record User(
     Long id,
     String login,

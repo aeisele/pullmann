@@ -5,14 +5,16 @@ import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 
+import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
+import com.andreaseisele.pullmann.github.result.UserResult;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +29,6 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("integration-test")
 @WireMockTest
 class GitHubClientIntegrationTest {
-
-    private static final DateTimeFormatter EXPIRATION_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z");
 
     @Autowired
     private GitHubClient gitHubClient;
@@ -59,8 +59,10 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var user = gitHubClient.currentUserViaToken(token);
+        final var result = gitHubClient.currentUserViaToken(token);
+        assertThat(result).isNotNull();
 
+        final var user = result.getUser();
         assertThat(user).isNotNull();
         assertThat(user.id()).isEqualTo(1234567);
         assertThat(user.login()).isEqualTo("testuser");
@@ -68,6 +70,9 @@ class GitHubClientIntegrationTest {
         assertThat(user.email()).isEqualTo("user@email.local");
         assertThat(user.avatarUrl()).isNotBlank();
         assertThat(user.reposUrl()).isNotBlank();
+
+        assertThat(result.getTokenExpiry()).isAfter(LocalDateTime.now());
+        assertThat(result.getScopes()).containsOnly("public_repo", "read:user", "repo:status", "user:email");
     }
 
     @Test
@@ -86,13 +91,14 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var user = gitHubClient.currentUserViaToken(token);
-
-        assertThat(user).isNull();
+        assertThatThrownBy(() -> gitHubClient.currentUserViaToken(token))
+            .isInstanceOf(GitHubHttpStatusException.class)
+            .hasMessageContaining("unexpected HTTP status code")
+            .hasFieldOrPropertyWithValue("httpStatus", 401);
     }
 
     private String expirationIn3Months() {
         final var dateTime = ZonedDateTime.of(LocalDateTime.now().plusMonths(3), ZoneId.of("UTC"));
-        return EXPIRATION_FORMATTER.format(dateTime);
+        return UserResult.EXPIRATION_FORMATTER.format(dateTime);
     }
 }

@@ -4,12 +4,15 @@ import com.andreaseisele.pullmann.github.dto.ErrorMessage;
 import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
 import com.andreaseisele.pullmann.github.error.GitHubExecutionException;
+import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
+import com.andreaseisele.pullmann.github.result.UserResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +38,7 @@ public class GitHubClient {
         this.urls = urls;
     }
 
-    public User currentUserViaToken(UsernamePasswordAuthenticationToken token) {
+    public UserResult currentUserViaToken(UsernamePasswordAuthenticationToken token) {
         final var credentials = buildCredentials(token);
         final var url = urls.currentUser();
         final var request = new Request.Builder()
@@ -46,21 +49,29 @@ public class GitHubClient {
 
         try (final var response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
-                return unmarshall(response.body(), User.class);
-            }
-
-            final var error = tryReadError(response.body());
-            if (error != null) {
-                logger.warn("call 'currentUserViaToken' was not OK: status={}, message={}, documentation-url={}",
-                    response.code(),
-                    error.message(),
-                    error.documentationUrl());
+                final var user = unmarshall(response.body(), User.class);
+                return UserResult.of(user,
+                    response.header(GitHubHeaders.OAUTH_SCOPES),
+                    response.header(GitHubHeaders.TOKEN_EXPIRATION));
             } else {
-                logger.warn("call 'currentUserViaToken' was not OK: status={}, no message", response.code());
+                logErrorResponse("currentUserViaToken", response);
+                throw new GitHubHttpStatusException(response.code(), "unexpected HTTP status code");
             }
-            return null; // TODO
         } catch (IOException e) {
             throw new GitHubExecutionException("error on call 'currentUserViaToken'", e);
+        }
+    }
+
+    private void logErrorResponse(String callName, Response errorResponse) throws IOException {
+        final var error = tryReadError(errorResponse.body());
+        if (error != null) {
+            logger.warn("call '{}' was not OK: status={}, message={}, documentation-url={}",
+                callName,
+                errorResponse.code(),
+                error.message(),
+                error.documentationUrl());
+        } else {
+            logger.warn("call 'currentUserViaToken' was not OK: status={}, no message", errorResponse.code());
         }
     }
 
