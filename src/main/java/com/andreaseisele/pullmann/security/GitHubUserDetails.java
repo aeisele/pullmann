@@ -68,4 +68,8 @@ public class GitHubUserDetails implements UserDetails {
         return accessToken;
     }
 
+    public LocalDateTime getExpiry() {
+        return expiry;
+    }
+
 }

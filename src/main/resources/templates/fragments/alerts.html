@@ -2,6 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:th="http://www.thymeleaf.org"
       lang="en">
+
 <div th:fragment="success(message)" class="alert alert-success" role="alert">
     <span th:text="${message}">[Success Message]</span>
 </div>
@@ -13,3 +14,9 @@
 <div th:fragment="error(message)" class="alert alert-danger" role="alert">
     <span th:text="${message}">[Error Message]</span>
 </div>
+
+<div th:fragment="info(message)" class="alert alert-primary" role="alert">
+    <span th:text="${message}">[Info Message]</span>
+</div>
+
+</html>
