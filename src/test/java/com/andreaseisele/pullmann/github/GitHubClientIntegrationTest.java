@@ -4,10 +4,12 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 
+import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.result.UserResult;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
@@ -120,6 +122,51 @@ class GitHubClientIntegrationTest {
                 assertThat(repository.name()).isEqualTo("Hello-World");
                 assertThat(repository.fullName()).isEqualTo("octocat/Hello-World");
                 assertThat(repository.size()).isEqualTo(108);
+            });
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void pullRequestsForRepo_ok() {
+        final var linkHeaderValue = "<http://localhost/repositories/1/pulls?page=2>; rel=\"next\", <http://localhost/repositories/1/pulls?page=11>; rel=\"last\"";
+
+        stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls"))
+            .withQueryParam("page", equalTo("1"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withHeader(HttpHeaders.LINK, linkHeaderValue)
+                .withBodyFile("repo_pull_requests.json")
+            )
+        );
+
+        final var result = gitHubClient.pullRequestsForRepo("octocat", "Hello-World", 1);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getPage()).isEqualTo(1);
+        assertThat(result.getMaxPages()).isEqualTo(11);
+
+        final var pullRequests = result.getPullRequests();
+        assertThat(pullRequests)
+            .hasSize(1)
+            .anySatisfy(pr -> {
+                assertThat(pr.id()).isEqualTo(1);
+                assertThat(pr.url()).isEqualTo("https://api.github.com/repos/octocat/Hello-World/pulls/1347");
+                assertThat(pr.title()).isEqualTo("Amazing new feature");
+                assertThat(pr.body()).isEqualTo("Please pull these awesome changes in!");
+                assertThat(pr.state()).isEqualTo(PullRequest.State.OPEN);
+
+                final var head = pr.head();
+                assertThat(head.label()).isEqualTo("octocat:new-topic");
+                assertThat(head.ref()).isEqualTo("new-topic");
+                assertThat(head.sha()).isEqualTo("6dcb09b5b57875f334f61aebed695e2e4193db5e");
+
+                final var base = pr.base();
+                assertThat(base.label()).isEqualTo("octocat:master");
+                assertThat(base.ref()).isEqualTo("master");
+                assertThat(base.sha()).isEqualTo("6dcb09b5b57875f334f61aebed695e2e4193db5e");
             });
     }
 

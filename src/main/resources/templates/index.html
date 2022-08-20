@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://ww.thymeleaf.org/extras/spring-security"
       lang="en">
 <head>
     <meta charset="UTF-8">
@@ -22,14 +21,18 @@
 
 <main>
 
-    <div th:replace="fragments/header :: header"></div>
+    <div th:replace="fragments/header :: header(0)"></div>
 
     <div class="container">
         <h2 th:text="#{repos.caption}">[Repos]</h2>
 
+        <th:block th:if="${repositories.isEmpty()}">
+            <div th:replace="fragments/alerts :: info(#{repos.empty})"></div>
+        </th:block>
+
         <div class="list-group w-auto">
             <div th:each="repository : ${repositories}">
-            <a href="#" class="list-group-item list-group-item-action d-flex gap-3 py-3" aria-current="true">
+            <a th:href="@{/pulls(repoFullName=${repository.fullName()})}" class="list-group-item list-group-item-action d-flex gap-3 py-3" aria-current="true">
                 <div class="mb-4">
                     <i class="fa-solid fa-database"></i>
                 </div>

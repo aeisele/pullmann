@@ -1,6 +1,9 @@
 package com.andreaseisele.pullmann.config;
 
 import com.andreaseisele.pullmann.github.GitHubProperties;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.time.Duration;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -38,6 +41,13 @@ public class HttpConfig {
             .readTimeout(Duration.ofSeconds(timeouts.getReadSeconds()))
             .callTimeout(Duration.ofSeconds(timeouts.getCallSeconds()))
             .addInterceptor(loggingInterceptor())
+            .build();
+    }
+
+    @Bean
+    public ObjectMapper githubObjectMapper() {
+        return JsonMapper.builder()
+            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
             .build();
     }
 

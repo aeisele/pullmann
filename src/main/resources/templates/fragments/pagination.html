@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+      lang="en">
+
+<nav th:fragment="pagination(page, maxPages, ref)" aria-label="...">
+    <ul class="pagination">
+        <li th:classappend="${page == 1} ? 'disabled' : ''" class="page-item">
+            <a class="page-link" th:text="#{page.previous}" th:href="@{${ref}(page=${page - 1})}">[Previous]</a>
+        </li>
+
+        <th:block th:each="i : ${#numbers.sequence(1, maxPages)}">
+            <li th:unless="${i == page}" class="page-item"><a class="page-link" th:text="${i}" th:href="@{${ref}(page=${i})}">[i]</a></li>
+
+            <li th:if="${i == page}" class="page-item active" aria-current="page">
+                <span class="page-link" th:text="${i}">[i]</span>
+            </li>
+        </th:block>
+
+        <li th:classappend="${page == maxPages ? 'disabled' : ''}" class="page-item">
+            <a class="page-link" th:href="@{${ref}(page=${page + 1})}" th:text="#{page.next}">[Next]</a>
+        </li>
+    </ul>
+</nav>
+
+</html>

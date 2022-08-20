@@ -9,6 +9,7 @@ public class GitHubUrls {
 
     private static final String PATH_USER = "user";
     private static final String PATH_USER_REPOS = "user/repos";
+    private static final String PATH_PULL_REQUESTS = "repos/{owner}/{name}/pulls";
 
     private final GitHubProperties properties;
 
@@ -24,6 +25,10 @@ public class GitHubUrls {
         return parseBaseUrl().resolve(PATH_USER_REPOS);
     }
 
+    public HttpUrl pullRequests() {
+        return parseBaseUrl().resolve(PATH_PULL_REQUESTS);
+    }
+
     private HttpUrl parseBaseUrl() {
         return parseBaseUrl(properties.getBaseUrl());
     }
@@ -35,5 +40,4 @@ public class GitHubUrls {
         }
         return parsed;
     }
-
 }

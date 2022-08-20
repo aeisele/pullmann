@@ -1,12 +1,14 @@
 package com.andreaseisele.pullmann.github;
 
 import com.andreaseisele.pullmann.github.dto.ErrorMessage;
+import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.dto.Repository;
 import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
 import com.andreaseisele.pullmann.github.error.GitHubExecutionException;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.error.GitHubSerializationException;
+import com.andreaseisele.pullmann.github.result.PullRequestResult;
 import com.andreaseisele.pullmann.github.result.UserResult;
 import com.andreaseisele.pullmann.security.AuthenticationHolder;
 import com.andreaseisele.pullmann.security.GitHubUserDetails;
@@ -22,6 +24,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -34,12 +37,14 @@ public class GitHubClient {
 
     private final OkHttpClient httpClient;
     private final GitHubUrls urls;
+    private final ObjectMapper objectMapper;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    public GitHubClient(OkHttpClient httpClient, GitHubUrls urls) {
+    public GitHubClient(@Qualifier("githubHttpClient") OkHttpClient httpClient,
+                        GitHubUrls urls,
+                        @Qualifier("githubObjectMapper") ObjectMapper objectMapper) {
         this.httpClient = httpClient;
         this.urls = urls;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -58,25 +63,17 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        try (final var response = httpClient.newCall(request).execute()) {
-            if (response.isSuccessful()) {
-                final var user = unmarshall(response.body(), User.class);
-                return UserResult.of(user,
-                    accessToken,
-                    response.header(GitHubHeaders.OAUTH_SCOPES),
-                    response.header(GitHubHeaders.TOKEN_EXPIRATION));
-            } else {
-                logErrorResponse("currentUserViaToken", response);
-                throw new GitHubHttpStatusException(response.code(), "unexpected HTTP status code");
-            }
-        } catch (IOException e) {
-            throw new GitHubExecutionException("error on call 'currentUserViaToken'", e);
-        }
+        return executeCall("currentUserViaToken", request, response -> {
+            final var user = unmarshall(response.body(), User.class);
+            return UserResult.of(user,
+                accessToken,
+                response.header(GitHubHeaders.OAUTH_SCOPES),
+                response.header(GitHubHeaders.TOKEN_EXPIRATION));
+        });
     }
 
     public List<Repository> userRepos() {
-        final var authentication = AuthenticationHolder.currentAuthentication();
-        final var credentials = buildCredentials(authentication);
+        final var credentials = buildCredentialsFromCurrentAuth();
         final var url = urls.userRepos();
         final var request = new Request.Builder()
             .url(url)
@@ -84,13 +81,34 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("userRepos", request, body -> unmarshallList(body, Repository.class));
+        return executeCall("userRepos", request, response -> unmarshallList(response.body(), Repository.class));
     }
 
-    private <R> R executeCall(String callName, Request request, Function<ResponseBody, R> unmarshallFun) {
+    public PullRequestResult pullRequestsForRepo(String owner, String name, int page) {
+        final var credentials = buildCredentialsFromCurrentAuth();
+
+        final var url = urls.pullRequests().newBuilder()
+            .setPathSegment(1, owner)
+            .setPathSegment(2, name)
+            .setQueryParameter("page", String.valueOf(page))
+            .build();
+
+        final var request = new Request.Builder()
+            .url(url)
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
+            .header(HttpHeaders.AUTHORIZATION, credentials)
+            .build();
+
+        return executeCall("pullRequestsForRepo", request, response -> {
+            final var pullRequests = unmarshallList(response.body(), PullRequest.class);
+            return PullRequestResult.of(pullRequests, page, response.header(HttpHeaders.LINK));
+        });
+    }
+
+    private <R> R executeCall(String callName, Request request, Function<Response, R> successHandler) {
         try (final var response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
-                return unmarshallFun.apply(response.body());
+                return successHandler.apply(response);
             } else {
                 logErrorResponse(callName, response);
                 throw new GitHubHttpStatusException(response.code(), "unexpected HTTP status code");
@@ -100,7 +118,7 @@ public class GitHubClient {
         }
     }
 
-    private void logErrorResponse(String callName, Response errorResponse) throws IOException {
+    private void logErrorResponse(String callName, Response errorResponse) {
         final var error = tryReadError(errorResponse.body());
         if (error != null) {
             logger.warn("call '{}' was not OK: status={}, message={}, documentation-url={}",
@@ -145,6 +163,10 @@ public class GitHubClient {
 
     private <T> String marshall(T dto) throws JsonProcessingException {
         return objectMapper.writeValueAsString(dto);
+    }
+
+    private static String buildCredentialsFromCurrentAuth() {
+        return buildCredentials(AuthenticationHolder.currentAuthentication());
     }
 
     private static String buildCredentials(UsernamePasswordAuthenticationToken token) {
