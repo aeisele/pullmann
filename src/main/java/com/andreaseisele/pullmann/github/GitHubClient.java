@@ -1,5 +1,8 @@
 package com.andreaseisele.pullmann.github;
 
+import static java.util.Objects.requireNonNull;
+
+
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.ErrorMessage;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
@@ -27,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -100,19 +104,38 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("pullRequestsForRepo", request, response -> {
-            final var pullRequests = unmarshallList(response.body(), PullRequest.class);
-            return PullRequestResult.of(pullRequests, page, response.header(HttpHeaders.LINK));
-        });
+        return executeCall("pullRequestsForRepo",
+            request,
+            response -> { // OK
+                final var pullRequests = unmarshallList(response.body(), PullRequest.class);
+                return PullRequestResult.of(pullRequests, page, response.header(HttpHeaders.LINK));
+            },
+            response -> { // BAD
+                if (response.code() == HttpStatus.NOT_FOUND.value()) {
+                    return PullRequestResult.empty();
+                } else {
+                    return GitHubClient.<PullRequestResult>defaultBadStatusHandler().apply(response);
+                }
+            });
     }
 
     private <R> R executeCall(String callName, Request request, Function<Response, R> successHandler) {
+        return executeCall(callName, request, successHandler, defaultBadStatusHandler());
+    }
+
+    private <R> R executeCall(String callName,
+                              Request request,
+                              Function<Response, R> successHandler,
+                              Function<Response, R> badStatusHandler) {
+        requireNonNull(successHandler, "success handler must not be null");
+        requireNonNull(badStatusHandler, "bad status handler must not be null");
+
         try (final var response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
                 return successHandler.apply(response);
             } else {
                 logErrorResponse(callName, response);
-                throw new GitHubHttpStatusException(response.code(), "unexpected HTTP status code");
+                return badStatusHandler.apply(response);
             }
         } catch (IOException e) {
             throw new GitHubExecutionException("error on call '%s'".formatted(callName), e);
@@ -130,6 +153,12 @@ public class GitHubClient {
         } else {
             logger.warn("call 'currentUserViaToken' was not OK: status={}, no message", errorResponse.code());
         }
+    }
+
+    private static <R> Function<Response, R> defaultBadStatusHandler() {
+        return response -> {
+            throw new GitHubHttpStatusException(response.code(), "unexpected HTTP status code");
+        };
     }
 
     private ErrorMessage tryReadError(ResponseBody body) {

@@ -1,12 +1,10 @@
 package com.andreaseisele.pullmann.github.result;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -28,9 +26,9 @@ class UserResultTest {
     void parseExpiry_wrongFormat() {
         final var expiryValue = "2022-09-15 15:06 UTC"; // seconds missing
 
-        assertThatThrownBy(() -> UserResult.parseExpiry(expiryValue))
-            .isInstanceOf(DateTimeParseException.class)
-            .hasMessageContaining("could not be parsed");
+        final var parsed = UserResult.parseExpiry(expiryValue);
+
+        assertThat(parsed).isNull();
     }
 
     @Test

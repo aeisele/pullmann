@@ -174,6 +174,28 @@ class GitHubClientIntegrationTest {
             });
     }
 
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void pullRequestsForRepo_notFound() {
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+
+        stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls"))
+            .withQueryParam("page", equalTo("1"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.NOT_FOUND.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile("not_found.json")
+            )
+        );
+
+        final var result = gitHubClient.pullRequestsForRepo(repositoryName, 1);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getPullRequests()).isEmpty();
+    }
+
     private String expirationIn3Months() {
         final var dateTime = ZonedDateTime.of(LocalDateTime.now().plusMonths(3), ZoneId.of("UTC"));
         return UserResult.EXPIRATION_FORMATTER.format(dateTime);

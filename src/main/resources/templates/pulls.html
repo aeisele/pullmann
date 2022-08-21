@@ -61,7 +61,16 @@
                         <div class="d-flex gap-2 w-100 justify-content-between">
                             <div>
                                 <h6 class="mb-0" th:text="${pull.title()}">[PR Title]</h6>
-                                <p class="mb-0 opacity-75" th:text="#{pulls.summary(${pull.number()}, ${pull.user().login()})}">[blah]</p>
+                                <div class="mb-0 row">
+                                    <div>
+                                        <span class="legend" th:text="#{pulls.state}">[State]</span>
+                                    </div>
+                                    <div>
+                                        <span th:with="sk = ${pull.state() ?: 'Unknown'}" th:text="#{'pulls.state.' + ${sk}}"></span>
+                                    </div>
+                                </div>
+                                <p th:if="${#strings.isEmpty(pull.user().email())}" class="mb-0 opacity-75" th:text="#{pulls.summary(${pull.number()}, ${pull.user().login()})}">[Author]</p>
+                                <p th:unless="${#strings.isEmpty(pull.user().email())}" class="mb-0 opacity-75" th:text="#{pulls.summary.email(${pull.number()}, ${pull.user().login()}, ${pull.user().email()})}">[Author]</p>
                             </div>
                             <small class="opacity-50 text-nowrap" th:text="|#{pulls.id}: ${pull.id()}|">[PR ID]</small>
                         </div>
