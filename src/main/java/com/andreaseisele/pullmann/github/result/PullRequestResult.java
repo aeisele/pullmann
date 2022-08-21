@@ -1,8 +1,5 @@
 package com.andreaseisele.pullmann.github.result;
 
-import static java.util.Objects.requireNonNull;
-
-
 import com.andreaseisele.pullmann.github.LinkParser;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import java.util.List;
@@ -22,14 +19,15 @@ public class PullRequestResult {
     }
 
     public static PullRequestResult of(List<PullRequest> pullRequests, int page, String linkInfo) {
-        requireNonNull(pullRequests, "pull requests must not be null");
-
         final var maxPage = parseLinkInfo(linkInfo);
         return new PullRequestResult(pullRequests, page, maxPage.orElse(page));
     }
 
     // Link: <https://api.github.com/repositories/2325298/pulls?page=2>; rel="next", <https://api.github.com/repositories/2325298/pulls?page=11>; rel="last"
     static Optional<Integer> parseLinkInfo(String linkInfo) {
+        if (linkInfo == null || linkInfo.isBlank()) {
+            return Optional.empty();
+        }
         return LinkParser.getLastRel(linkInfo)
             .map(url -> {
                 final var parsed = HttpUrl.parse(url);

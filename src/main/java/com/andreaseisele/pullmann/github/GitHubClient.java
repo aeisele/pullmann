@@ -1,5 +1,6 @@
 package com.andreaseisele.pullmann.github;
 
+import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.ErrorMessage;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.dto.Repository;
@@ -84,12 +85,12 @@ public class GitHubClient {
         return executeCall("userRepos", request, response -> unmarshallList(response.body(), Repository.class));
     }
 
-    public PullRequestResult pullRequestsForRepo(String owner, String name, int page) {
+    public PullRequestResult pullRequestsForRepo(RepositoryName repositoryName, int page) {
         final var credentials = buildCredentialsFromCurrentAuth();
 
         final var url = urls.pullRequests().newBuilder()
-            .setPathSegment(1, owner)
-            .setPathSegment(2, name)
+            .setPathSegment(1, repositoryName.getOwner())
+            .setPathSegment(2, repositoryName.getRepository())
             .setQueryParameter("page", String.valueOf(page))
             .build();
 

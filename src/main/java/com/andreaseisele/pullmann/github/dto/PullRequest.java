@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record PullRequest(
     Long id,
+    Long number,
     String url,
     String title,
     String body,

@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 
+import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.result.UserResult;
@@ -128,7 +129,10 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void pullRequestsForRepo_ok() {
-        final var linkHeaderValue = "<http://localhost/repositories/1/pulls?page=2>; rel=\"next\", <http://localhost/repositories/1/pulls?page=11>; rel=\"last\"";
+        final var linkHeaderValue =
+            "<http://localhost/repositories/1/pulls?page=2>; rel=\"next\", <http://localhost/repositories/1/pulls?page=11>; rel=\"last\"";
+
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
 
         stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls"))
             .withQueryParam("page", equalTo("1"))
@@ -142,7 +146,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var result = gitHubClient.pullRequestsForRepo("octocat", "Hello-World", 1);
+        final var result = gitHubClient.pullRequestsForRepo(repositoryName, 1);
 
         assertThat(result).isNotNull();
         assertThat(result.getPage()).isEqualTo(1);
