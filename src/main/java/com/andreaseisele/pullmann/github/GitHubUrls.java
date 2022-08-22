@@ -11,7 +11,7 @@ public class GitHubUrls {
     private static final String PATH_USER_REPOS = "user/repos";
     private static final String PATH_PULL_REQUESTS = "repos/{owner}/{repository}/pulls";
     private static final String PATH_PULL_REQUEST_DETAILS = PATH_PULL_REQUESTS + "/{pullNumber}";
-    private static final String PATH_PULL_REQUEST_MERGE = PATH_PULL_REQUESTS + "/merge";
+    private static final String PATH_PULL_REQUEST_MERGE = PATH_PULL_REQUEST_DETAILS + "/merge";
 
     private final GitHubProperties properties;
 

@@ -1,6 +1,7 @@
 package com.andreaseisele.pullmann.github;
 
 import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.PositiveOrZero;
 import okhttp3.logging.HttpLoggingInterceptor;
@@ -25,6 +26,9 @@ public final class GitHubProperties {
     @NotNull
     private HttpLoggingInterceptor.Level logLevel = HttpLoggingInterceptor.Level.NONE;
 
+    @NotBlank
+    private String mergeMessage = "merged via Pullman";
+
     public String getBaseUrl() {
         return baseUrl;
     }
@@ -47,6 +51,14 @@ public final class GitHubProperties {
 
     public void setLogLevel(HttpLoggingInterceptor.Level logLevel) {
         this.logLevel = logLevel;
+    }
+
+    public String getMergeMessage() {
+        return mergeMessage;
+    }
+
+    public void setMergeMessage(String mergeMessage) {
+        this.mergeMessage = mergeMessage;
     }
 
     /**

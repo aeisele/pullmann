@@ -1,8 +1,11 @@
 package com.andreaseisele.pullmann.github;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,6 +24,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -224,6 +229,73 @@ class GitHubClientIntegrationTest {
         assertThat(pullRequest.user()).isNotNull();
         assertThat(pullRequest.head()).isNotNull();
         assertThat(pullRequest.base()).isNotNull();
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void merge_ok() {
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final var message = "test message";
+        final var sha = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
+
+        stubFor(put(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347/merge"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .withHeader(HttpHeaders.CONTENT_TYPE, containing(MediaType.APPLICATION_JSON_VALUE))
+            .withRequestBody(equalToJson("""
+                {
+                  "commit_message" : "test message",
+                  "sha" : "6dcb09b5b57875f334f61aebed695e2e4193db5e"
+                }"""))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile("merge_success.json")
+            )
+        );
+
+        final var result = gitHubClient.merge(coordinates, message, sha);
+
+        assertThat(result).isNotNull();
+        assertThat(result.isSuccessful()).isTrue();
+        assertThat(result.getResponse()).isNotNull();
+
+        final var response = result.getResponse();
+        assertThat(response.merged()).isTrue();
+        assertThat(response.sha()).isEqualTo("6dcb09b5b57875f334f61aebed695e2e4193db5e");
+        assertThat(response.message()).isEqualTo("Pull Request successfully merged");
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @ValueSource(ints = {404, 405, 409})
+    @ParameterizedTest
+    void merge_failure(int badStatus) {
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final var message = "test message";
+        final var sha = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
+
+        stubFor(put(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347/merge"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .withHeader(HttpHeaders.CONTENT_TYPE, containing(MediaType.APPLICATION_JSON_VALUE))
+            .withRequestBody(equalToJson("""
+                {
+                  "commit_message" : "test message",
+                  "sha" : "6dcb09b5b57875f334f61aebed695e2e4193db5e"
+                }"""))
+            .willReturn(aResponse()
+                .withStatus(badStatus)
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile("merge_failure.json")
+            )
+        );
+
+        final var result = gitHubClient.merge(coordinates, message, sha);
+
+        assertThat(result).isNotNull();
+        assertThat(result.isSuccessful()).isFalse();
     }
 
     private String expirationIn3Months() {

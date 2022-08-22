@@ -26,6 +26,13 @@
     <div class="container">
         <h2 th:text="#{prDetails.title}">[Pull Request Details]</h2>
 
+        <th:block th:if="${merged != null && merged}">
+            <div th:replace="fragments/alerts :: success(#{prDetails.message.mergedSuccessful})">[Success Message]</div>
+        </th:block>
+        <th:block th:if="${merged != null && !merged}">
+            <div th:replace="fragments/alerts :: warning(#{prDetails.message.mergedFailure})">[Failure Message]</div>
+        </th:block>
+
         <h3 th:text="${pr.title()}">[Summary]</h3>
 
         <div class="row mb-3">
@@ -52,8 +59,13 @@
         </div>
 
         <div class="btn-group mb-3" role="group">
-            <a href="#" th:classappend="${canMerge ? '' : 'disabled'}" class="btn btn-primary" th:text="#{prDetails.action.merge}">Merge</a>
-            <a href="#" class="btn btn-primary" th:text="#{prDetails.action.download}">Download Files</a>
+            <form class="p-1 m-0 border-0" th:action="@{/pulls/merge/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">
+                <button type="submit" th:classappend="${canMerge ? '' : 'disabled'}" class="btn btn-primary" th:text="#{prDetails.action.merge}">Merge</button>
+            </form>
+
+            <form class="p-1 m-0 border-0" th:action="@{/pulls/download/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">
+                <button type="submit" class="btn btn-primary" th:text="#{prDetails.action.download}">Download Files</button>
+            </form>
         </div>
 
         <div class="card text-bg-light">

@@ -6,6 +6,8 @@ import static java.util.Objects.requireNonNull;
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.ErrorMessage;
+import com.andreaseisele.pullmann.github.dto.MergeRequest;
+import com.andreaseisele.pullmann.github.dto.MergeResponse;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.dto.Repository;
 import com.andreaseisele.pullmann.github.dto.User;
@@ -13,6 +15,7 @@ import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
 import com.andreaseisele.pullmann.github.error.GitHubExecutionException;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.error.GitHubSerializationException;
+import com.andreaseisele.pullmann.github.result.MergeResult;
 import com.andreaseisele.pullmann.github.result.PullRequestResult;
 import com.andreaseisele.pullmann.github.result.UserResult;
 import com.andreaseisele.pullmann.security.AuthenticationHolder;
@@ -25,6 +28,7 @@ import java.util.function.Function;
 import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.slf4j.Logger;
@@ -143,6 +147,34 @@ public class GitHubClient {
             response -> unmarshall(response.body(), PullRequest.class));
     }
 
+    public MergeResult merge(PullRequestCoordinates coordinates, String message, String sha) {
+        final var credentials = buildCredentialsFromCurrentAuth();
+        final var url = urls.pullRequestMerge()
+            .newBuilder()
+            .setPathSegment(1, coordinates.repositoryName().getOwner())
+            .setPathSegment(2, coordinates.repositoryName().getRepository())
+            .setPathSegment(4, String.valueOf(coordinates.number()))
+            .build();
+
+        final var body = marshall(new MergeRequest(message, sha));
+
+        final var request = new Request.Builder()
+            .url(url)
+            .put(RequestBody.create(body, okhttp3.MediaType.get(MediaType.APPLICATION_JSON_VALUE)))
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
+            .header(HttpHeaders.AUTHORIZATION, credentials)
+            .build();
+
+        return executeCall("merge",
+            request,
+            response -> MergeResult.of(unmarshall(response.body(), MergeResponse.class)), // OK
+            response ->  // FAILURE
+                switch (response.code()) {
+                    case 404, 405, 409 -> MergeResult.failure();
+                    default -> GitHubClient.<MergeResult>defaultBadStatusHandler().apply(response);
+                });
+    }
+
     private <R> R executeCall(String callName, Request request, Function<Response, R> successHandler) {
         return executeCall(callName, request, successHandler, defaultBadStatusHandler());
     }
@@ -215,8 +247,12 @@ public class GitHubClient {
         }
     }
 
-    private <T> String marshall(T dto) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(dto);
+    private <T> String marshall(T dto) {
+        try {
+            return objectMapper.writeValueAsString(dto);
+        } catch (JsonProcessingException e) {
+            throw new GitHubSerializationException("error marshalling " + dto.getClass(), e);
+        }
     }
 
     private static String buildCredentialsFromCurrentAuth() {
