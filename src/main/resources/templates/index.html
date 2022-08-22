@@ -41,7 +41,7 @@
                         <h6 class="mb-0" th:text="${repository.name}">[Repo Name]</h6>
                         <p class="mb-0 opacity-75" th:text="${repository.fullName}">[Repo Full Name]</p>
                     </div>
-                    <small class="opacity-50 text-nowrap" th:text="${repository.size}">[Size]</small>
+                    <small class="opacity-50 text-nowrap" th:text="|#{repos.size}: ${repository.size}|">[Size]</small>
                 </div>
             </a>
             </div>

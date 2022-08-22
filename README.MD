@@ -32,6 +32,21 @@ features like preemptive authentication.
 In a bigger project integration of _contract-based_ techniques like _Feign_ and/or _OpenAPI_ would be
 chosen to enhance maintainability.
 
+### DD.3 GitHub Rest API
+
+Integration works against the GitHub Rest API to keep things simple.
+
+One major disadvantage is that the Rest response bodies can get quite large and not all the info is needed.
+Usage of GraphQL would rectify this problem.
+
+### DD.4 URL construction
+
+The GitHub API gives back complete URLs ones could use to navigate, e.g. from repo to pull requests.
+Due to how the application is structured, usage of those URLs from a given DTO to later calls would
+necessitate feeding back those URLs into request parameters. This could be problematic because we 
+would still need to verify that the URLs are genuine and not malicious. So for the time being URLs
+will be constructed as stated in GitHub's API documentation.
+
 ## Missing Stuff
 
 ### I18N

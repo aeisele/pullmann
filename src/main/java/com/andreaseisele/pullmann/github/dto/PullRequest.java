@@ -1,6 +1,7 @@
 package com.andreaseisele.pullmann.github.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * GitHub Pull Request DTO.
@@ -16,7 +17,10 @@ public record PullRequest(
     State state,
     User user,
     BranchInfo head,
-    BranchInfo base
+    BranchInfo base,
+    @JsonProperty("changed_files") Long changedFiles,
+    Boolean mergeable,
+    Boolean merged
 ) {
     public enum State {
         OPEN,

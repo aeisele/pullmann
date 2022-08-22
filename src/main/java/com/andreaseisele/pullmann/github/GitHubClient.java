@@ -3,6 +3,7 @@ package com.andreaseisele.pullmann.github;
 import static java.util.Objects.requireNonNull;
 
 
+import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.ErrorMessage;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
@@ -86,7 +87,9 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("userRepos", request, response -> unmarshallList(response.body(), Repository.class));
+        return executeCall("userRepos",
+            request,
+            response -> unmarshallList(response.body(), Repository.class));
     }
 
     public PullRequestResult pullRequestsForRepo(RepositoryName repositoryName, int page) {
@@ -96,6 +99,7 @@ public class GitHubClient {
             .setPathSegment(1, repositoryName.getOwner())
             .setPathSegment(2, repositoryName.getRepository())
             .setQueryParameter("page", String.valueOf(page))
+            .setQueryParameter("state", "all")
             .build();
 
         final var request = new Request.Builder()
@@ -117,6 +121,26 @@ public class GitHubClient {
                     return GitHubClient.<PullRequestResult>defaultBadStatusHandler().apply(response);
                 }
             });
+    }
+
+    public PullRequest pullRequestDetails(PullRequestCoordinates coordinates) {
+        final var credentials = buildCredentialsFromCurrentAuth();
+        final var url = urls.pullRequestDetails()
+            .newBuilder()
+            .setPathSegment(1, coordinates.repositoryName().getOwner())
+            .setPathSegment(2, coordinates.repositoryName().getRepository())
+            .setPathSegment(4, String.valueOf(coordinates.number()))
+            .build();
+
+        final var request = new Request.Builder()
+            .url(url)
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
+            .header(HttpHeaders.AUTHORIZATION, credentials)
+            .build();
+
+        return executeCall("pullRequestDetails",
+            request,
+            response -> unmarshall(response.body(), PullRequest.class));
     }
 
     private <R> R executeCall(String callName, Request request, Function<Response, R> successHandler) {

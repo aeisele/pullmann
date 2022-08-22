@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 
+import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
@@ -161,6 +162,7 @@ class GitHubClientIntegrationTest {
                 assertThat(pr.title()).isEqualTo("Amazing new feature");
                 assertThat(pr.body()).isEqualTo("Please pull these awesome changes in!");
                 assertThat(pr.state()).isEqualTo(PullRequest.State.OPEN);
+                assertThat(pr.user()).isNotNull();
 
                 final var head = pr.head();
                 assertThat(head.label()).isEqualTo("octocat:new-topic");
@@ -194,6 +196,34 @@ class GitHubClientIntegrationTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getPullRequests()).isEmpty();
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void pullRequestDetails_ok() {
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+
+        stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile("pull_request_details.json")
+            )
+        );
+
+        final var pullRequest = gitHubClient.pullRequestDetails(coordinates);
+
+        assertThat(pullRequest).isNotNull();
+        assertThat(pullRequest.id()).isEqualTo(1);
+        assertThat(pullRequest.url()).isEqualTo("https://api.github.com/repos/octocat/Hello-World/pulls/1347");
+        assertThat(pullRequest.title()).isEqualTo("Amazing new feature");
+        assertThat(pullRequest.state()).isEqualTo(PullRequest.State.OPEN);
+        assertThat(pullRequest.user()).isNotNull();
+        assertThat(pullRequest.head()).isNotNull();
+        assertThat(pullRequest.base()).isNotNull();
     }
 
     private String expirationIn3Months() {

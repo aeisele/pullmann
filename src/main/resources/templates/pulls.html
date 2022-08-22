@@ -54,7 +54,7 @@
         <div th:unless="${pulls.isEmpty()}">
             <div class="list-group w-auto">
                 <div th:each="pull : ${pulls}">
-                    <a href="#" class="list-group-item list-group-item-action d-flex gap-3 py-3" aria-current="true">
+                    <a th:href="@{/pulls/details/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pull.number()})}" class="list-group-item list-group-item-action d-flex gap-3 py-3" aria-current="true">
                         <div class="mb-4">
                             <i class="fa-solid fa-code-pull-request"></i>
                         </div>
@@ -62,12 +62,14 @@
                             <div>
                                 <h6 class="mb-0" th:text="${pull.title()}">[PR Title]</h6>
                                 <div class="mb-0 row">
-                                    <div>
-                                        <span class="legend" th:text="#{pulls.state}">[State]</span>
-                                    </div>
-                                    <div>
-                                        <span th:with="sk = ${pull.state() ?: 'Unknown'}" th:text="#{'pulls.state.' + ${sk}}"></span>
-                                    </div>
+                                    <dt class="col-sm-4 mb-0 opacity-75" th:text="#{pulls.state}">[State]</dt>
+                                    <dd class="col-sm-8 mb-0 opacity-75" th:with="sk = ${pull.state() ?: 'Unknown'}" th:text="#{'pulls.state.' + ${sk}}">[State]</dd>
+
+                                    <dt class="col-sm-4 mb-0 opacity-75" th:text="#{pulls.sourceBranch}">[Target Branch]</dt>
+                                    <dd class="col-sm-8 mb-0 opacity-75" th:text="${pull.head().label()}">[Target Branch]</dd>
+
+                                    <dt class="col-sm-4 mb-0 opacity-75" th:text="#{pulls.targetBranch}">[Target Branch]</dt>
+                                    <dd class="col-sm-8 mb-0 opacity-75" th:text="${pull.base().label()}">[Target Branch]</dd>
                                 </div>
                                 <p th:if="${#strings.isEmpty(pull.user().email())}" class="mb-0 opacity-75" th:text="#{pulls.summary(${pull.number()}, ${pull.user().login()})}">[Author]</p>
                                 <p th:unless="${#strings.isEmpty(pull.user().email())}" class="mb-0 opacity-75" th:text="#{pulls.summary.email(${pull.number()}, ${pull.user().login()}, ${pull.user().email()})}">[Author]</p>

@@ -38,7 +38,7 @@
     <div style="height: 1rem"></div>
 
     <div class="container">
-        <div th:replace="fragments/alerts :: info(#{token.expiration(${#authentication.details?.expiry})})">[Token Expiration]</div>
+        <div th:replace="fragments/alerts :: info(#{token.expiration(${#temporals.formatISO(#authentication.details?.expiry)})})">[Token Expiration]</div>
     </div>
 
 </div>
