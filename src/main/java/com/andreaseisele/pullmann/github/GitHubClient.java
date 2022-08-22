@@ -10,6 +10,7 @@ import com.andreaseisele.pullmann.github.dto.MergeRequest;
 import com.andreaseisele.pullmann.github.dto.MergeResponse;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.dto.Repository;
+import com.andreaseisele.pullmann.github.dto.UpdateRequest;
 import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
 import com.andreaseisele.pullmann.github.error.GitHubExecutionException;
@@ -98,13 +99,7 @@ public class GitHubClient {
 
     public PullRequestResult pullRequestsForRepo(RepositoryName repositoryName, int page) {
         final var credentials = buildCredentialsFromCurrentAuth();
-
-        final var url = urls.pullRequests().newBuilder()
-            .setPathSegment(1, repositoryName.getOwner())
-            .setPathSegment(2, repositoryName.getRepository())
-            .setQueryParameter("page", String.valueOf(page))
-            .setQueryParameter("state", "all")
-            .build();
+        final var url = urls.pullRequests(repositoryName, page, "all");
 
         final var request = new Request.Builder()
             .url(url)
@@ -129,12 +124,7 @@ public class GitHubClient {
 
     public PullRequest pullRequestDetails(PullRequestCoordinates coordinates) {
         final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.pullRequestDetails()
-            .newBuilder()
-            .setPathSegment(1, coordinates.repositoryName().getOwner())
-            .setPathSegment(2, coordinates.repositoryName().getRepository())
-            .setPathSegment(4, String.valueOf(coordinates.number()))
-            .build();
+        final var url = urls.pullRequestDetails(coordinates);
 
         final var request = new Request.Builder()
             .url(url)
@@ -149,12 +139,7 @@ public class GitHubClient {
 
     public MergeResult merge(PullRequestCoordinates coordinates, String message, String sha) {
         final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.pullRequestMerge()
-            .newBuilder()
-            .setPathSegment(1, coordinates.repositoryName().getOwner())
-            .setPathSegment(2, coordinates.repositoryName().getRepository())
-            .setPathSegment(4, String.valueOf(coordinates.number()))
-            .build();
+        final var url = urls.pullRequestMerge(coordinates);
 
         final var body = marshall(new MergeRequest(message, sha));
 
@@ -172,6 +157,29 @@ public class GitHubClient {
                 switch (response.code()) {
                     case 404, 405, 409 -> MergeResult.failure();
                     default -> GitHubClient.<MergeResult>defaultBadStatusHandler().apply(response);
+                });
+    }
+
+    public boolean close(PullRequestCoordinates coordinates) {
+        final var credentials = buildCredentialsFromCurrentAuth();
+        final var url = urls.pullRequestDetails(coordinates);
+
+        final var body = marshall(new UpdateRequest(PullRequest.State.CLOSED));
+
+        final var request = new Request.Builder()
+            .url(url)
+            .patch(RequestBody.create(body, okhttp3.MediaType.get(MediaType.APPLICATION_JSON_VALUE)))
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
+            .header(HttpHeaders.AUTHORIZATION, credentials)
+            .build();
+
+        return executeCall("close",
+            request,
+            response -> true, // OK
+            response ->  // BAD
+                switch (response.code()) {
+                    case 403, 404, 422 -> false;
+                    default -> GitHubClient.<Boolean>defaultBadStatusHandler().apply(response);
                 });
     }
 

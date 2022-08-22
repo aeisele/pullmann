@@ -5,6 +5,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.patch;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -296,6 +297,59 @@ class GitHubClientIntegrationTest {
 
         assertThat(result).isNotNull();
         assertThat(result.isSuccessful()).isFalse();
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void close_ok() {
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+
+        stubFor(patch(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .withHeader(HttpHeaders.CONTENT_TYPE, containing(MediaType.APPLICATION_JSON_VALUE))
+            .withRequestBody(equalToJson("""
+                {
+                  "state" : "closed"
+                }"""))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile("close_pull_request_ok.json")
+            )
+        );
+
+        final var success = gitHubClient.close(coordinates);
+
+        assertThat(success).isTrue();
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @ParameterizedTest
+    @ValueSource(ints = {403, 404, 422})
+    void close_failure(int badStatus) {
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+
+        stubFor(patch(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .withHeader(HttpHeaders.CONTENT_TYPE, containing(MediaType.APPLICATION_JSON_VALUE))
+            .withRequestBody(equalToJson("""
+                {
+                  "state" : "closed"
+                }"""))
+            .willReturn(aResponse()
+                .withStatus(badStatus)
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile("close_pull_request_failure.json")
+            )
+        );
+
+        final var success = gitHubClient.close(coordinates);
+
+        assertThat(success).isFalse();
     }
 
     private String expirationIn3Months() {

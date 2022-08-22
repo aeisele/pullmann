@@ -24,7 +24,6 @@
     <div th:replace="fragments/header :: header(1)"></div>
 
     <div class="container">
-        <h2 th:text="#{prDetails.title}">[Pull Request Details]</h2>
 
         <th:block th:if="${merged != null && merged}">
             <div th:replace="fragments/alerts :: success(#{prDetails.message.mergedSuccessful})">[Success Message]</div>
@@ -32,6 +31,15 @@
         <th:block th:if="${merged != null && !merged}">
             <div th:replace="fragments/alerts :: warning(#{prDetails.message.mergedFailure})">[Failure Message]</div>
         </th:block>
+
+        <th:block th:if="${closed != null && closed}">
+            <div th:replace="fragments/alerts :: success(#{prDetails.message.closeSuccessful})">[Success Message]</div>
+        </th:block>
+        <th:block th:if="${closed != null && !closed}">
+            <div th:replace="fragments/alerts :: warning(#{prDetails.message.closeFailure})">[Failure Message]</div>
+        </th:block>
+
+        <h2 th:text="#{prDetails.title}">[Pull Request Details]</h2>
 
         <h3 th:text="${pr.title()}">[Summary]</h3>
 
@@ -61,6 +69,10 @@
         <div class="btn-group mb-3" role="group">
             <form class="p-1 m-0 border-0" th:action="@{/pulls/merge/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">
                 <button type="submit" th:classappend="${canMerge ? '' : 'disabled'}" class="btn btn-primary" th:text="#{prDetails.action.merge}">Merge</button>
+            </form>
+
+            <form class="p-1 m-0 border-0" th:action="@{/pulls/close/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">
+                <button type="submit" th:classappend="${pr.state().name() == 'CLOSED' ? 'disabled' : ''}" class="btn btn-primary" th:text="#{prDetails.action.close}">Close</button>
             </form>
 
             <form class="p-1 m-0 border-0" th:action="@{/pulls/download/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">

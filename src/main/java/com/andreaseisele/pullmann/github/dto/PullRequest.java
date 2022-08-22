@@ -2,6 +2,7 @@ package com.andreaseisele.pullmann.github.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
  * GitHub Pull Request DTO.
@@ -23,7 +24,19 @@ public record PullRequest(
     Boolean merged
 ) {
     public enum State {
-        OPEN,
-        CLOSED
+        OPEN("open"),
+        CLOSED("closed");
+
+        private final String apiValue;
+
+        State(String apiValue) {
+            this.apiValue = apiValue;
+        }
+
+        @JsonValue
+        public String getApiValue() {
+            return apiValue;
+        }
+
     }
 }

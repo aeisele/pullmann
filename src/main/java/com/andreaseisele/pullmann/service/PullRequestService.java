@@ -44,6 +44,11 @@ public class PullRequestService {
     }
 
     @PreAuthorize("isAuthenticated()")
+    public boolean close(PullRequestCoordinates coordinates) {
+        return gitHubClient.close(coordinates);
+    }
+
+    @PreAuthorize("isAuthenticated()")
     public void startDownload(PullRequestCoordinates coordinates){
         final var pullRequest = gitHubClient.pullRequestDetails(coordinates);
         downloadService.startDownload(pullRequest);

@@ -3,11 +3,13 @@ package com.andreaseisele.pullmann.github;
 import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Positive;
 import javax.validation.constraints.PositiveOrZero;
 import okhttp3.logging.HttpLoggingInterceptor;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
+import org.springframework.core.io.Resource;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
@@ -28,6 +30,11 @@ public final class GitHubProperties {
 
     @NotBlank
     private String mergeMessage = "merged via Pullman";
+
+    @Valid
+    @NestedConfigurationProperty
+    @NotNull
+    private DownloadProperties download = new DownloadProperties();
 
     public String getBaseUrl() {
         return baseUrl;
@@ -59,6 +66,14 @@ public final class GitHubProperties {
 
     public void setMergeMessage(String mergeMessage) {
         this.mergeMessage = mergeMessage;
+    }
+
+    public DownloadProperties getDownload() {
+        return download;
+    }
+
+    public void setDownload(DownloadProperties download) {
+        this.download = download;
     }
 
     /**
@@ -109,6 +124,32 @@ public final class GitHubProperties {
 
         public void setCallSeconds(int callSeconds) {
             this.callSeconds = callSeconds;
+        }
+    }
+
+
+    public static class DownloadProperties {
+
+        @Positive
+        private int maxSimultaneous = 10;
+
+        @NotNull
+        private Resource location;
+
+        public int getMaxSimultaneous() {
+            return maxSimultaneous;
+        }
+
+        public void setMaxSimultaneous(int maxSimultaneous) {
+            this.maxSimultaneous = maxSimultaneous;
+        }
+
+        public Resource getLocation() {
+            return location;
+        }
+
+        public void setLocation(Resource location) {
+            this.location = location;
         }
     }
 

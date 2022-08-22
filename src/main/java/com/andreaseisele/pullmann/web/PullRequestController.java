@@ -2,6 +2,7 @@ package com.andreaseisele.pullmann.web;
 
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
+import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.service.PullRequestService;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Positive;
@@ -59,16 +60,21 @@ public class PullRequestController {
                           @PathVariable("repo") String repo,
                           @PathVariable("number") Long number,
                           @RequestParam(value = "merged", required = false) Boolean merged,
+                          @RequestParam(value = "closed", required = false) Boolean closed,
                           Model model) {
         final PullRequestCoordinates coordinates = buildCoordinates(owner, repo, number);
         final var pullRequest = pullRequestService.requestDetails(coordinates);
 
         model.addAttribute("pr", pullRequest);
-        model.addAttribute("canMerge", Boolean.TRUE.equals(pullRequest.mergeable()));
+        model.addAttribute("canMerge", Boolean.TRUE.equals(pullRequest.mergeable())
+            && pullRequest.state() != PullRequest.State.CLOSED);
         model.addAttribute("owner", owner);
         model.addAttribute("repo", repo);
         if (merged != null) {
             model.addAttribute("merged", merged);
+        }
+        if (closed != null) {
+            model.addAttribute("closed", closed);
         }
 
         return "prDetails";
@@ -85,6 +91,20 @@ public class PullRequestController {
         final var merged = result.isSuccessful();
 
         redirectAttributes.addAttribute("merged", merged);
+
+        return new RedirectView("/pulls/details/{owner}/{repo}/{number}");
+    }
+
+    @PostMapping("/close/{owner}/{repo}/{number}")
+    public RedirectView close(@PathVariable("owner") String owner,
+                              @PathVariable("repo") String repo,
+                              @PathVariable("number") Long number,
+                              RedirectAttributes redirectAttributes) {
+
+        final PullRequestCoordinates coordinates = buildCoordinates(owner, repo, number);
+        final var closed = pullRequestService.close(coordinates);
+
+        redirectAttributes.addAttribute("closed", closed);
 
         return new RedirectView("/pulls/details/{owner}/{repo}/{number}");
     }
