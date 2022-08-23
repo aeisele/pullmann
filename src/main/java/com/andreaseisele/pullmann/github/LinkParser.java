@@ -1,10 +1,8 @@
 package com.andreaseisele.pullmann.github;
 
-import static java.util.Objects.requireNonNull;
-
-
 import java.util.Optional;
 import java.util.regex.Pattern;
+import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +19,9 @@ public class LinkParser {
      */
     // Link: <https://api.github.com/repositories/2325298/pulls?page=2>; rel="next", <https://api.github.com/repositories/2325298/pulls?page=11>; rel="last"
     public static Optional<String> getLastRel(String linkHeader) {
-        requireNonNull(linkHeader, "link header must not be null");
+        if (linkHeader == null || linkHeader.isBlank()) {
+            return Optional.empty();
+        }
 
         final var links = linkHeader.split(",");
         for (String link : links) {
@@ -35,6 +35,18 @@ public class LinkParser {
 
         logger.warn("could find 'last' rel in Link header value: [{}]", linkHeader);
         return Optional.empty();
+    }
+
+    public static Optional<Integer> getLastPage(String linkHeader) {
+        return getLastRel(linkHeader)
+            .map(url -> {
+                final var parsed = HttpUrl.parse(url);
+                if (parsed == null) {
+                    return null;
+                }
+                return parsed.queryParameter("page");
+            })
+            .map(Integer::valueOf);
     }
 
     private LinkParser(){}

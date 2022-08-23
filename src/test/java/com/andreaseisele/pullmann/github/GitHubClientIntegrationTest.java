@@ -352,6 +352,45 @@ class GitHubClientIntegrationTest {
         assertThat(success).isFalse();
     }
 
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void files_ok() {
+        final var linkHeaderValue =
+            "<http://localhost/repositories/1/pulls/1347/files?page=2>; rel=\"next\", <http://localhost/repositories/1/pulls/1347/?page=11>; rel=\"last\"";
+
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+
+        stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347/files"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .withQueryParam("page", equalTo("1"))
+            .withQueryParam("per_page", equalTo("100"))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withHeader(HttpHeaders.LINK, linkHeaderValue)
+                .withBodyFile("pull_request_files.json")
+            )
+        );
+
+        final var result = gitHubClient.files(coordinates, 1);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getPage()).isEqualTo(1);
+        assertThat(result.getMaxPages()).isEqualTo(11);
+        assertThat(result.getFiles())
+            .hasSize(1)
+            .anySatisfy(file -> {
+                assertThat(file.sha()).isEqualTo("bbcd538c8e72b8c175046e27cc8f907076331401");
+                assertThat(file.filename()).isEqualTo("file1.txt");
+                assertThat(file.rawUrl()).isEqualTo(
+                    "https://github.com/octocat/Hello-World/blob/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt");
+                assertThat(file.blobUrl()).isEqualTo(
+                    "https://github.com/octocat/Hello-World/raw/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt");
+            });
+    }
+
     private String expirationIn3Months() {
         final var dateTime = ZonedDateTime.of(LocalDateTime.now().plusMonths(3), ZoneId.of("UTC"));
         return UserResult.EXPIRATION_FORMATTER.format(dateTime);

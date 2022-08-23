@@ -4,8 +4,6 @@ import com.andreaseisele.pullmann.github.LinkParser;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import okhttp3.HttpUrl;
 
 public class PullRequestResult {
 
@@ -20,28 +18,12 @@ public class PullRequestResult {
     }
 
     public static PullRequestResult of(List<PullRequest> pullRequests, int page, String linkInfo) {
-        final var maxPage = parseLinkInfo(linkInfo);
+        final var maxPage = LinkParser.getLastPage(linkInfo);
         return new PullRequestResult(pullRequests, page, maxPage.orElse(page));
     }
 
     public static PullRequestResult empty() {
         return new PullRequestResult(Collections.emptyList(), 1, 1);
-    }
-
-    // Link: <https://api.github.com/repositories/2325298/pulls?page=2>; rel="next", <https://api.github.com/repositories/2325298/pulls?page=11>; rel="last"
-    static Optional<Integer> parseLinkInfo(String linkInfo) {
-        if (linkInfo == null || linkInfo.isBlank()) {
-            return Optional.empty();
-        }
-        return LinkParser.getLastRel(linkInfo)
-            .map(url -> {
-                final var parsed = HttpUrl.parse(url);
-                if (parsed == null) {
-                    return null;
-                }
-                return parsed.queryParameter("page");
-            })
-            .map(Integer::valueOf);
     }
 
     public List<PullRequest> getPullRequests() {

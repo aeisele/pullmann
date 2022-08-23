@@ -14,6 +14,7 @@ public class GitHubUrls {
     private static final String PATH_PULL_REQUESTS = "repos/{owner}/{repository}/pulls";
     private static final String PATH_PULL_REQUEST_DETAILS = PATH_PULL_REQUESTS + "/{pullNumber}";
     private static final String PATH_PULL_REQUEST_MERGE = PATH_PULL_REQUEST_DETAILS + "/merge";
+    private static final String PATH_PULL_REQUEST_FILES = PATH_PULL_REQUEST_DETAILS + "/files";
 
     private final GitHubProperties properties;
 
@@ -30,8 +31,7 @@ public class GitHubUrls {
     }
 
     public HttpUrl pullRequests(RepositoryName repositoryName, int page, String state) {
-        return parseBaseUrl().resolve(PATH_PULL_REQUESTS)
-            .newBuilder()
+        return builderFor(PATH_PULL_REQUESTS)
             .setPathSegment(1, repositoryName.getOwner())
             .setPathSegment(2, repositoryName.getRepository())
             .setQueryParameter("page", String.valueOf(page))
@@ -40,8 +40,7 @@ public class GitHubUrls {
     }
 
     public HttpUrl pullRequestDetails(PullRequestCoordinates coordinates) {
-        return parseBaseUrl().resolve(PATH_PULL_REQUEST_DETAILS)
-            .newBuilder()
+        return builderFor(PATH_PULL_REQUEST_DETAILS)
             .setPathSegment(1, coordinates.repositoryName().getOwner())
             .setPathSegment(2, coordinates.repositoryName().getRepository())
             .setPathSegment(4, String.valueOf(coordinates.number()))
@@ -49,12 +48,29 @@ public class GitHubUrls {
     }
 
     public HttpUrl pullRequestMerge(PullRequestCoordinates coordinates) {
-        return parseBaseUrl().resolve(PATH_PULL_REQUEST_MERGE)
-            .newBuilder()
+        return builderFor(PATH_PULL_REQUEST_MERGE)
             .setPathSegment(1, coordinates.repositoryName().getOwner())
             .setPathSegment(2, coordinates.repositoryName().getRepository())
             .setPathSegment(4, String.valueOf(coordinates.number()))
             .build();
+    }
+
+    public HttpUrl pullRequestFiles(PullRequestCoordinates coordinates, int page, int perPage) {
+        return builderFor(PATH_PULL_REQUEST_FILES)
+            .setPathSegment(1, coordinates.repositoryName().getOwner())
+            .setPathSegment(2, coordinates.repositoryName().getRepository())
+            .setPathSegment(4, String.valueOf(coordinates.number()))
+            .setQueryParameter("page", String.valueOf(page))
+            .setQueryParameter("per_page", String.valueOf(perPage))
+            .build();
+    }
+
+    private HttpUrl.Builder builderFor(String path) {
+        final var resolved = parseBaseUrl().resolve(path);
+        if (resolved == null) {
+            throw new GitHubInitException("unable to resolve base url against path " + path);
+        }
+        return resolved.newBuilder();
     }
 
     private HttpUrl parseBaseUrl() {

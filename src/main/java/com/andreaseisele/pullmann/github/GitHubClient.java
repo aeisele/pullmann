@@ -6,6 +6,7 @@ import static java.util.Objects.requireNonNull;
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.ErrorMessage;
+import com.andreaseisele.pullmann.github.dto.File;
 import com.andreaseisele.pullmann.github.dto.MergeRequest;
 import com.andreaseisele.pullmann.github.dto.MergeResponse;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
@@ -16,6 +17,7 @@ import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
 import com.andreaseisele.pullmann.github.error.GitHubExecutionException;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.error.GitHubSerializationException;
+import com.andreaseisele.pullmann.github.result.FileResult;
 import com.andreaseisele.pullmann.github.result.MergeResult;
 import com.andreaseisele.pullmann.github.result.PullRequestResult;
 import com.andreaseisele.pullmann.github.result.UserResult;
@@ -181,6 +183,25 @@ public class GitHubClient {
                     case 403, 404, 422 -> false;
                     default -> GitHubClient.<Boolean>defaultBadStatusHandler().apply(response);
                 });
+    }
+
+    public FileResult files(PullRequestCoordinates coordinates, int page) {
+        final var credentials = buildCredentialsFromCurrentAuth();
+        final var url = urls.pullRequestFiles(coordinates, page, 100);
+
+        final var request = new Request.Builder()
+            .url(url)
+            .get()
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
+            .header(HttpHeaders.AUTHORIZATION, credentials)
+            .build();
+
+        return executeCall("files",
+            request,
+            response -> {
+                final var files = unmarshallList(response.body(), File.class);
+                return FileResult.of(files, page, response.header(HttpHeaders.LINK));
+            });
     }
 
     private <R> R executeCall(String callName, Request request, Function<Response, R> successHandler) {
