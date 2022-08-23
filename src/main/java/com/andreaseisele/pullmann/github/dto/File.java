@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record File(
     String sha,
     String filename,
-    @JsonProperty("blob_url") String rawUrl,
-    @JsonProperty("raw_url") String blobUrl
+    @JsonProperty("raw_url") String rawUrl,
+    @JsonProperty("blob_url") String blobUrl
 ) {
 }

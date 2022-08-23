@@ -26,7 +26,15 @@
     <div class="container">
         <h2 th:text="#{downloads.title}">[Downloads]</h2>
 
-
+        <ul>
+            <li th:each="entry : ${downloads}">
+                <div th:text="${entry.getKey().coordinates().repositoryName().owner()}"></div>
+                <div th:text="${entry.getKey().coordinates().repositoryName().repository()}"></div>
+                <div th:text="${entry.getKey().coordinates().number()}"></div>
+                <div th:text="${entry.getKey().headSha()}"></div>
+                <div th:text="${entry.getValue()}"></div>
+            </li>
+        </ul>
     </div>
 
 </main>

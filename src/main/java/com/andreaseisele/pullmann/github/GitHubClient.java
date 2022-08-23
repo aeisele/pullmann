@@ -221,6 +221,7 @@ public class GitHubClient {
             .url(url)
             .get()
             .header(HttpHeaders.AUTHORIZATION, credentials)
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.RAW)
             .build();
 
         return executeCall("download",

@@ -26,8 +26,8 @@ class RepositoryNameTest {
         final var parsed = RepositoryName.parse(fullName);
 
         assertThat(parsed).hasValueSatisfying(name -> {
-            assertThat(name.getOwner()).isEqualTo(expectedOwner);
-            assertThat(name.getRepository()).isEqualTo(expectedRepo);
+            assertThat(name.owner()).isEqualTo(expectedOwner);
+            assertThat(name.repository()).isEqualTo(expectedRepo);
         });
     }
 

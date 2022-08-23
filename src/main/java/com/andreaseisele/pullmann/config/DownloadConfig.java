@@ -21,6 +21,8 @@ public class DownloadConfig {
         final var executor = builder.threadNamePrefix("downloader")
             .corePoolSize(1 + gitHubProperties.getDownload().getMaxSimultaneous())
             .build();
+        executor.initialize();
+
         return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 

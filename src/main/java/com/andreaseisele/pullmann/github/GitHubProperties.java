@@ -151,6 +151,7 @@ public final class GitHubProperties {
         public void setLocation(Resource location) {
             this.location = location;
         }
+
     }
 
 }

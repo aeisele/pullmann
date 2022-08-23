@@ -45,8 +45,8 @@ public class PullRequestController {
 
             final var result = pullRequestService.requestsForRepo(repositoryName, page);
             model.addAttribute("repoFullName", repoFullName);
-            model.addAttribute("owner", repositoryName.getOwner());
-            model.addAttribute("repo", repositoryName.getRepository());
+            model.addAttribute("owner", repositoryName.owner());
+            model.addAttribute("repo", repositoryName.repository());
             model.addAttribute("pulls", result.getPullRequests());
             model.addAttribute("page", result.getPage());
             model.addAttribute("maxPages", result.getMaxPages());

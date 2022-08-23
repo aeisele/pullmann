@@ -32,8 +32,8 @@ public class GitHubUrls {
 
     public HttpUrl pullRequests(RepositoryName repositoryName, int page, String state) {
         return builderFor(PATH_PULL_REQUESTS)
-            .setPathSegment(1, repositoryName.getOwner())
-            .setPathSegment(2, repositoryName.getRepository())
+            .setPathSegment(1, repositoryName.owner())
+            .setPathSegment(2, repositoryName.repository())
             .setQueryParameter("page", String.valueOf(page))
             .setQueryParameter("state", state)
             .build();
@@ -41,24 +41,24 @@ public class GitHubUrls {
 
     public HttpUrl pullRequestDetails(PullRequestCoordinates coordinates) {
         return builderFor(PATH_PULL_REQUEST_DETAILS)
-            .setPathSegment(1, coordinates.repositoryName().getOwner())
-            .setPathSegment(2, coordinates.repositoryName().getRepository())
+            .setPathSegment(1, coordinates.repositoryName().owner())
+            .setPathSegment(2, coordinates.repositoryName().repository())
             .setPathSegment(4, String.valueOf(coordinates.number()))
             .build();
     }
 
     public HttpUrl pullRequestMerge(PullRequestCoordinates coordinates) {
         return builderFor(PATH_PULL_REQUEST_MERGE)
-            .setPathSegment(1, coordinates.repositoryName().getOwner())
-            .setPathSegment(2, coordinates.repositoryName().getRepository())
+            .setPathSegment(1, coordinates.repositoryName().owner())
+            .setPathSegment(2, coordinates.repositoryName().repository())
             .setPathSegment(4, String.valueOf(coordinates.number()))
             .build();
     }
 
     public HttpUrl pullRequestFiles(PullRequestCoordinates coordinates, int page, int perPage) {
         return builderFor(PATH_PULL_REQUEST_FILES)
-            .setPathSegment(1, coordinates.repositoryName().getOwner())
-            .setPathSegment(2, coordinates.repositoryName().getRepository())
+            .setPathSegment(1, coordinates.repositoryName().owner())
+            .setPathSegment(2, coordinates.repositoryName().repository())
             .setPathSegment(4, String.valueOf(coordinates.number()))
             .setQueryParameter("page", String.valueOf(page))
             .setQueryParameter("per_page", String.valueOf(perPage))
