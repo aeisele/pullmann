@@ -20,9 +20,14 @@ import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.result.UserResult;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -389,6 +394,35 @@ class GitHubClientIntegrationTest {
                 assertThat(file.blobUrl()).isEqualTo(
                     "https://github.com/octocat/Hello-World/raw/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt");
             });
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @Test
+    void downloadFile_ok(WireMockRuntimeInfo wmRuntimeInfo) throws IOException {
+        final var path = "/octocat/Hello-World/blob/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt";
+        final var downloadUrl = wmRuntimeInfo.getHttpBaseUrl() + path;
+        final var fileContent = new byte[2048];
+        ThreadLocalRandom.current().nextBytes(fileContent);
+
+        stubFor(get(urlPathEqualTo(path))
+            .withBasicAuth("test_user", "test")
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withBody(fileContent)
+            ));
+
+        try (final var fs = Jimfs.newFileSystem(Configuration.unix())) {
+            final var directory = fs.getPath("dir");
+            Files.createDirectories(directory);
+
+            final var target = directory.resolve("file1.txt");
+
+            final var success = gitHubClient.downloadFile(downloadUrl, target);
+            assertThat(success).isTrue();
+
+            final var contentDownloaded = Files.readAllBytes(target);
+            assertThat(contentDownloaded).isEqualTo(fileContent);
+        }
     }
 
     private String expirationIn3Months() {

@@ -14,6 +14,7 @@ import com.andreaseisele.pullmann.github.dto.Repository;
 import com.andreaseisele.pullmann.github.dto.UpdateRequest;
 import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
+import com.andreaseisele.pullmann.github.error.GitHubDownloadException;
 import com.andreaseisele.pullmann.github.error.GitHubExecutionException;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.error.GitHubSerializationException;
@@ -26,6 +27,9 @@ import com.andreaseisele.pullmann.security.GitHubUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
 import okhttp3.Credentials;
@@ -204,6 +208,29 @@ public class GitHubClient {
             });
     }
 
+    /**
+     * Downloads the response (body) to the given url directly.
+     * @param url href to the download
+     * @param target file to store the download to
+     * @throws GitHubDownloadException when the download fails due to IO errors
+     */
+    public boolean downloadFile(String url, Path target) {
+        final var credentials = buildCredentialsFromCurrentAuth();
+
+        final var request = new Request.Builder()
+            .url(url)
+            .get()
+            .header(HttpHeaders.AUTHORIZATION, credentials)
+            .build();
+
+        return executeCall("download",
+            request,
+            response -> {
+                downloadToTarget(response, target);
+                return true;
+            });
+    }
+
     private <R> R executeCall(String callName, Request request, Function<Response, R> successHandler) {
         return executeCall(callName, request, successHandler, defaultBadStatusHandler());
     }
@@ -281,6 +308,18 @@ public class GitHubClient {
             return objectMapper.writeValueAsString(dto);
         } catch (JsonProcessingException e) {
             throw new GitHubSerializationException("error marshalling " + dto.getClass(), e);
+        }
+    }
+
+    private void downloadToTarget(Response response, Path target) {
+        final var body = response.body();
+        if (body == null) {
+            throw new GitHubExecutionException("tried to download a null body");
+        }
+        try (InputStream in = body.byteStream()) {
+            Files.copy(in, target);
+        } catch (IOException e) {
+            throw new GitHubDownloadException("error downloading file to target " + target, e);
         }
     }
 
