@@ -109,7 +109,7 @@ necessitate feeding back those URLs into request parameters. This could be probl
 would still need to verify that the URLs are genuine and not malicious. So for the time being URLs
 will be constructed as stated in GitHub's API documentation.
 
-### DD.5 Type Inference
+### DD.5 Type Inference / functional style
 
 Not a design decision per se, but my current IDE settings were geared towards the code style of my other
 projects. Although the usage or over-usage of `var` / `val` is quite subjective, some clients force the
@@ -117,6 +117,8 @@ usage of `var` for every reference via code analysis tools.
 
 Pro: helps with type migrations
 Con: doesn't help with readability 
+
+I try to avoid using streams and functional idioms unless it makes the code easier or more readable.
 
 ## Missing Stuff
 
@@ -129,11 +131,9 @@ bundles though.
 
 Currently there are rudimentary _Server Side Events_ to basically trigger a reload of the downloads page
 on status changes. Due to all kinds of edge cases regarding browser compatibility / settings this is not
-a super solid solution.
+a super solid solution and more like an 'extra'. 
 
 ### Handling of user permissions
 
 The OAuth scopes of a GitHub access token are quite broad. Even though we take the scopes and turn them
-into _Spring Security's authorities_ this is not enough to make fine granular decisions. Such decisions
-would include whether a user can even merge a pull request or not. At the moment users may see actions
-which in turn will be denied by the API for permission reasons.
+into _Spring Security's authorities_ this is not enough to make fine granular decisions.
