@@ -109,6 +109,15 @@ necessitate feeding back those URLs into request parameters. This could be probl
 would still need to verify that the URLs are genuine and not malicious. So for the time being URLs
 will be constructed as stated in GitHub's API documentation.
 
+### DD.5 Type Inference
+
+Not a design decision per se, but my current IDE settings were geared towards the code style of my other
+projects. Although the usage or over-usage of `var` / `val` is quite subjective, some clients force the
+usage of `var` for every reference via code analysis tools.
+
+Pro: helps with type migrations
+Con: doesn't help with readability 
+
 ## Missing Stuff
 
 ### I18N
