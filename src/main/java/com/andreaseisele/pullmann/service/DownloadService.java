@@ -7,8 +7,8 @@ import com.andreaseisele.pullmann.download.FileDownload;
 import com.andreaseisele.pullmann.download.FileStore;
 import com.andreaseisele.pullmann.download.PullRequestDownload;
 import com.andreaseisele.pullmann.github.GitHubClient;
+import com.andreaseisele.pullmann.github.GitHubProperties;
 import com.andreaseisele.pullmann.github.dto.File;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,17 +32,19 @@ public class DownloadService {
     private final AsyncTaskExecutor pullRequestDownloadExecutor;
     private final AsyncTaskExecutor fileDownloadExecutor;
     private final FileStore fileStore;
+    private final GitHubProperties properties;
 
     private final Map<PullRequestDownload, DownloadState> downloads = new ConcurrentHashMap<>();
 
     public DownloadService(GitHubClient gitHubClient,
                            @Qualifier("pullRequestDownloadExecutor") AsyncTaskExecutor pullRequestDownloadExecutor,
                            @Qualifier("fileDownloadExecutor") AsyncTaskExecutor fileDownloadExecutor,
-                           FileStore fileStore) {
+                           FileStore fileStore, GitHubProperties properties) {
         this.gitHubClient = gitHubClient;
         this.pullRequestDownloadExecutor = pullRequestDownloadExecutor;
         this.fileDownloadExecutor = fileDownloadExecutor;
         this.fileStore = fileStore;
+        this.properties = properties;
     }
 
     @PostConstruct
@@ -59,7 +61,11 @@ public class DownloadService {
         final var download = new PullRequestDownload(coordinates, headSha);
 
         var state = downloads.computeIfAbsent(download, k -> {
-            pullRequestDownloadExecutor.submit(() -> executeDownload(download));
+            if (properties.getDownload().isUseContentEndpoint()) {
+                pullRequestDownloadExecutor.submit(() -> executeContentDownload(download));
+            } else {
+                pullRequestDownloadExecutor.submit(() -> executeDownload(download));
+            }
             return DownloadState.RUNNING;
         });
 
@@ -72,6 +78,10 @@ public class DownloadService {
 
     public Map<PullRequestDownload, DownloadState> getDownloads() {
         return Map.copyOf(downloads);
+    }
+
+    private void executeContentDownload(PullRequestDownload pullRequestDownload) {
+
     }
 
     private void executeDownload(PullRequestDownload pullRequestDownload) {
@@ -133,6 +143,8 @@ public class DownloadService {
     private void cancelAndTransitionToError(PullRequestDownload pullRequestDownload, List<Future<DownloadedFile>> downloadTasks) {
         downloads.put(pullRequestDownload, DownloadState.ERROR);
         downloadTasks.forEach(task -> task.cancel(true));
+
+        fileStore.removeZip(pullRequestDownload);
     }
 
     private static RuntimeException launderThrowable(Throwable t) {
