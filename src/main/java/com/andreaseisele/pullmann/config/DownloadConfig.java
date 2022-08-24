@@ -17,8 +17,18 @@ public class DownloadConfig {
     }
 
     @Bean
-    public AsyncTaskExecutor downloadExecutor(TaskExecutorBuilder builder) {
-        final var executor = builder.threadNamePrefix("downloader")
+    public AsyncTaskExecutor pullRequestDownloadExecutor(TaskExecutorBuilder builder) {
+        final var executor = builder.threadNamePrefix("pr-dl")
+            .corePoolSize(1 + gitHubProperties.getDownload().getMaxSimultaneous())
+            .build();
+        executor.initialize();
+
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
+    }
+
+    @Bean
+    public AsyncTaskExecutor fileDownloadExecutor(TaskExecutorBuilder builder) {
+        final var executor = builder.threadNamePrefix("file-dl")
             .corePoolSize(1 + gitHubProperties.getDownload().getMaxSimultaneous())
             .build();
         executor.initialize();
