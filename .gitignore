@@ -34,3 +34,6 @@ build/
 
 # local dev
 src/main/resources/application-local*.properties
+
+# app
+download_cache
