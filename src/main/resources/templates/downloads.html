@@ -26,13 +26,48 @@
     <div class="container">
         <h2 th:text="#{downloads.title}">[Downloads]</h2>
 
-        <ul>
-            <li th:each="entry : ${downloads}">
-                <div th:text="${entry.getKey().coordinates().repositoryName().owner()}"></div>
-                <div th:text="${entry.getKey().coordinates().repositoryName().repository()}"></div>
-                <div th:text="${entry.getKey().coordinates().number()}"></div>
-                <div th:text="${entry.getKey().headSha()}"></div>
-                <div th:text="${entry.getValue()}"></div>
+        <ul class="list-group w-auto">
+            <li class="list-group-item d-flex gap-3 py-3"
+                th:each="entry : ${downloads}"
+                th:with="owner = ${entry.getKey().coordinates().repositoryName().owner()}, repo = ${entry.getKey().coordinates().repositoryName().repository()}, number = ${entry.getKey().coordinates().number()}">
+
+                <div class="mb-4">
+                    <i class="fa-solid fa-file-zipper"></i>
+                </div>
+                <div class="d-flex gap-2 w-100 justify-content-between">
+                    <div>
+                        <div class="mb0 row">
+                            <dt class="col-4" th:text="#{downloads.repository}">[Repository]</dt>
+                            <dd class="col-6" th:text="| ${owner} / ${repo} |">[Repository]</dd>
+
+                            <dt class="col-4" th:text="#{downloads.pullRequest}">[PR Number]</dt>
+                            <dd class="col-6" th:text="${number}">[PR Number]</dd>
+                        </div>
+                        <div class="mb0 row">
+                            <dt class="col-4" th:text="#{downloads.headSha}">[Head SHA]</dt>
+                            <dd class="col-6" th:text="${entry.getKey().headSha()}">[Head SHA</dd>
+
+                            <dt class="col-4" th:text="#{downloads.state}">[State]</dt>
+                            <dd class="col-6" th:text="#{'downloads.state.' + ${entry.value}}">[State]</dd>
+                        </div>
+
+                        <div>
+                            <div class="btn-group">
+                                <div class="p-1 m-0 border-0">
+                                    <a th:href="@{/downloads/zip/{owner}/{repo}/{number}/{headSha}(owner=${owner}, repo=${repo}, number=${number}, headSha=${entry.getKey().headSha()})}"
+                                       role="button"
+                                       th:classappend="${entry.getValue().name() == 'FINISHED' ? '' : 'disabled'}"
+                                       class="btn btn-primary"
+                                       th:text="#{downloads.action.zip}">[Get Zip]</a>
+                                </div>
+
+                                <form class="p-1 m-0 border-0" th:action="@{/downloads/delete/{owner}/{repo}/{number}/{headSha}(owner=${owner}, repo=${repo}, number=${number}, headSha=${entry.getKey().headSha()})}" method="post">
+                                    <button role="button" type="submit" class="btn btn-danger" th:text="#{downloads.action.delete}">[Delete]</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </li>
         </ul>
     </div>
@@ -46,6 +81,21 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
         crossorigin="anonymous"></script>
+
+<script type="application/javascript">
+    const eventSource = new EventSource("downloads/events", {withCredentials: true});
+    eventSource.onmessage = (event) => {
+        console.log(event);
+        eventSource.close();
+        window.location.reload();
+    }
+    eventSource.onerror = (err) => {
+        console.log(err);
+        if (err.eventPhase === EventSource.CLOSED) {
+            eventSource.close();
+        }
+    }
+</script>
 
 </body>
 </html>

@@ -15,6 +15,7 @@ public class GitHubUrls {
     private static final String PATH_PULL_REQUEST_DETAILS = PATH_PULL_REQUESTS + "/{pullNumber}";
     private static final String PATH_PULL_REQUEST_MERGE = PATH_PULL_REQUEST_DETAILS + "/merge";
     private static final String PATH_PULL_REQUEST_FILES = PATH_PULL_REQUEST_DETAILS + "/files";
+    private static final String PATH_REPO_CONTENTS = "/repos/{owner}/{repository}/zipball/{ref}";
 
     private final GitHubProperties properties;
 
@@ -62,6 +63,14 @@ public class GitHubUrls {
             .setPathSegment(4, String.valueOf(coordinates.number()))
             .setQueryParameter("page", String.valueOf(page))
             .setQueryParameter("per_page", String.valueOf(perPage))
+            .build();
+    }
+
+    public HttpUrl repositoryContents(RepositoryName repositoryName, String ref) {
+        return builderFor(PATH_REPO_CONTENTS)
+            .setPathSegment(1, repositoryName.owner())
+            .setPathSegment(2, repositoryName.repository())
+            .setPathSegment(4, ref)
             .build();
     }
 

@@ -54,6 +54,8 @@ will be constructed as stated in GitHub's API documentation.
 Strings are hardcoded to US english for now. Both Spring and Thymeleaf would support I18N via resource
 bundles though.
 
-## Abbreviations
+### Proper Client Notifications
 
-- CVC: _collaborative version control_
+Currently there are rudimentary _Server Side Events_ to basically trigger a reload of the downloads page
+on status changes. Due to all kinds of edge cases regarding browser compatibility / settings this is not
+a super solid solution.

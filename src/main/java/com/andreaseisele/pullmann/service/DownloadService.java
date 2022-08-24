@@ -2,26 +2,23 @@ package com.andreaseisele.pullmann.service;
 
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.download.DownloadState;
-import com.andreaseisele.pullmann.download.DownloadedFile;
-import com.andreaseisele.pullmann.download.FileDownload;
 import com.andreaseisele.pullmann.download.FileStore;
 import com.andreaseisele.pullmann.download.PullRequestDownload;
 import com.andreaseisele.pullmann.github.GitHubClient;
-import com.andreaseisele.pullmann.github.GitHubProperties;
-import com.andreaseisele.pullmann.github.dto.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.Future;
 import javax.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 public class DownloadService {
@@ -30,21 +27,18 @@ public class DownloadService {
 
     private final GitHubClient gitHubClient;
     private final AsyncTaskExecutor pullRequestDownloadExecutor;
-    private final AsyncTaskExecutor fileDownloadExecutor;
     private final FileStore fileStore;
-    private final GitHubProperties properties;
 
     private final Map<PullRequestDownload, DownloadState> downloads = new ConcurrentHashMap<>();
 
+    private final Set<SseEmitter> eventEmitters = ConcurrentHashMap.newKeySet();
+
     public DownloadService(GitHubClient gitHubClient,
                            @Qualifier("pullRequestDownloadExecutor") AsyncTaskExecutor pullRequestDownloadExecutor,
-                           @Qualifier("fileDownloadExecutor") AsyncTaskExecutor fileDownloadExecutor,
-                           FileStore fileStore, GitHubProperties properties) {
+                           FileStore fileStore) {
         this.gitHubClient = gitHubClient;
         this.pullRequestDownloadExecutor = pullRequestDownloadExecutor;
-        this.fileDownloadExecutor = fileDownloadExecutor;
         this.fileStore = fileStore;
-        this.properties = properties;
     }
 
     @PostConstruct
@@ -61,11 +55,7 @@ public class DownloadService {
         final var download = new PullRequestDownload(coordinates, headSha);
 
         var state = downloads.computeIfAbsent(download, k -> {
-            if (properties.getDownload().isUseContentEndpoint()) {
-                pullRequestDownloadExecutor.submit(() -> executeContentDownload(download));
-            } else {
-                pullRequestDownloadExecutor.submit(() -> executeDownload(download));
-            }
+            pullRequestDownloadExecutor.submit(() -> executeDownload(download));
             return DownloadState.RUNNING;
         });
 
@@ -80,80 +70,55 @@ public class DownloadService {
         return Map.copyOf(downloads);
     }
 
-    private void executeContentDownload(PullRequestDownload pullRequestDownload) {
+    public Optional<Path> findZip(PullRequestDownload download) {
+        return fileStore.findZip(download);
+    }
 
+    public void deleteZip(PullRequestDownload download) {
+        fileStore.deleteZip(download);
+        downloads.remove(download);
+        emitEvent();
+    }
+
+    public void registerEmitter(SseEmitter emitter) {
+        emitter.onCompletion(() -> eventEmitters.remove(emitter));
+        emitter.onTimeout(emitter::complete);
+        eventEmitters.add(emitter);
     }
 
     private void executeDownload(PullRequestDownload pullRequestDownload) {
         logger.info("starting new pull request download [{}]", pullRequestDownload);
 
-        final var completionService = new ExecutorCompletionService<DownloadedFile>(fileDownloadExecutor);
-        final var downloaded = new ArrayList<DownloadedFile>();
-        final var downloadTasks = new ArrayList<Future<DownloadedFile>>();
-
-        var pageOfFiles = gitHubClient.files(pullRequestDownload.coordinates(), 1);
-        while (pageOfFiles != null) {
-            final var page = pageOfFiles.getPage();
-            final var maxPages = pageOfFiles.getMaxPages();
-
-            for (final var file : pageOfFiles.getFiles()) {
-                var task = completionService.submit(() -> downloadFile(pullRequestDownload, file));
-                downloadTasks.add(task);
-            }
-
-            if (page < maxPages) {
-                pageOfFiles = gitHubClient.files(pullRequestDownload.coordinates(), page + 1);
-            } else {
-                pageOfFiles = null;
-            }
-        }
-
+        final var target = fileStore.getForPullRequest(pullRequestDownload);
         try {
-            for (int i = 0; i < downloadTasks.size(); i++) {
-                final var completedTask = completionService.take();
-                downloaded.add(completedTask.get());
-            }
-
-            fileStore.zipUp(pullRequestDownload, downloaded);
+            gitHubClient.downloadRepoContent(pullRequestDownload.coordinates().repositoryName(),
+                pullRequestDownload.headSha(),
+                target);
 
             logger.debug("pull request download done for [{}]", pullRequestDownload);
             downloads.put(pullRequestDownload, DownloadState.FINISHED);
-        } catch (InterruptedException e) {
-            logger.warn("interrupted during download -> cancelling");
-            Thread.currentThread().interrupt();
-            cancelAndTransitionToError(pullRequestDownload, downloadTasks);
-        } catch (ExecutionException e) {
-            logger.error("download error -> cancelling", e);
-            cancelAndTransitionToError(pullRequestDownload, downloadTasks);
-            throw launderThrowable(e);
+
+        } catch (RuntimeException rt) {
+            logger.error("unexpected error while downloading", rt);
+            downloads.put(pullRequestDownload, DownloadState.ERROR);
+        }
+
+        emitEvent();
+    }
+
+    private void emitEvent() {
+        final var event = SseEmitter.event()
+            .id(UUID.randomUUID().toString())
+            .data("downloads updated")
+            .name("download update event")
+            .build();
+
+        for (final var emitter : eventEmitters) {
+            try {
+                emitter.send(event);
+            } catch (IOException e) {
+                logger.warn("unable to send SSE download update event {}", e.getMessage());
+            }
         }
     }
-
-    private DownloadedFile downloadFile(PullRequestDownload pullRequestDownload, File file) {
-        logger.debug("starting single file download [{}]", pullRequestDownload);
-
-        final var fileDownload = new FileDownload(pullRequestDownload, file.filename(), file.sha());
-        final var target = fileStore.getForFile(fileDownload);
-        gitHubClient.downloadFile(file.rawUrl(), target);
-
-        logger.debug("done with single file downloat at [{}]", target);
-        return new DownloadedFile(fileDownload, target);
-    }
-
-    private void cancelAndTransitionToError(PullRequestDownload pullRequestDownload, List<Future<DownloadedFile>> downloadTasks) {
-        downloads.put(pullRequestDownload, DownloadState.ERROR);
-        downloadTasks.forEach(task -> task.cancel(true));
-
-        fileStore.removeZip(pullRequestDownload);
-    }
-
-    private static RuntimeException launderThrowable(Throwable t) {
-        if (t instanceof RuntimeException rt)
-            return rt;
-        else if (t instanceof Error err)
-            throw err;
-        else
-            throw new IllegalStateException("Not unchecked", t);
-    }
-
 }

@@ -136,11 +136,6 @@ public final class GitHubProperties {
         @NotNull
         private Resource location;
 
-        /**
-         * Use the GitHub repository content zip endpoint directly instead of downloading blobs individually
-         */
-        private boolean useContentEndpoint = true;
-
         public int getMaxSimultaneous() {
             return maxSimultaneous;
         }
@@ -155,14 +150,6 @@ public final class GitHubProperties {
 
         public void setLocation(Resource location) {
             this.location = location;
-        }
-
-        public boolean isUseContentEndpoint() {
-            return useContentEndpoint;
-        }
-
-        public void setUseContentEndpoint(boolean useContentEndpoint) {
-            this.useContentEndpoint = useContentEndpoint;
         }
 
     }

@@ -27,9 +27,9 @@ import com.andreaseisele.pullmann.security.GitHubUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Function;
 import okhttp3.Credentials;
@@ -41,6 +41,7 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -51,6 +52,7 @@ import org.springframework.stereotype.Service;
 public class GitHubClient {
 
     private static final Logger logger = LoggerFactory.getLogger(GitHubClient.class);
+
 
     private final OkHttpClient httpClient;
     private final GitHubUrls urls;
@@ -80,13 +82,16 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("currentUserViaToken", request, response -> {
-            final var user = unmarshall(response.body(), User.class);
-            return UserResult.of(user,
-                accessToken,
-                response.header(GitHubHeaders.OAUTH_SCOPES),
-                response.header(GitHubHeaders.TOKEN_EXPIRATION));
-        });
+        return executeCall(httpClient,
+            "currentUserViaToken",
+            request,
+            response -> {
+                final var user = unmarshall(response.body(), User.class);
+                return UserResult.of(user,
+                    accessToken,
+                    response.header(GitHubHeaders.OAUTH_SCOPES),
+                    response.header(GitHubHeaders.TOKEN_EXPIRATION));
+            });
     }
 
     public List<Repository> userRepos() {
@@ -98,7 +103,8 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("userRepos",
+        return executeCall(httpClient,
+            "userRepos",
             request,
             response -> unmarshallList(response.body(), Repository.class));
     }
@@ -113,7 +119,8 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("pullRequestsForRepo",
+        return executeCall(httpClient,
+            "pullRequestsForRepo",
             request,
             response -> { // OK
                 final var pullRequests = unmarshallList(response.body(), PullRequest.class);
@@ -138,7 +145,8 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("pullRequestDetails",
+        return executeCall(httpClient,
+            "pullRequestDetails",
             request,
             response -> unmarshall(response.body(), PullRequest.class));
     }
@@ -156,7 +164,8 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("merge",
+        return executeCall(httpClient,
+            "merge",
             request,
             response -> MergeResult.of(unmarshall(response.body(), MergeResponse.class)), // OK
             response ->  // FAILURE
@@ -179,7 +188,8 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("close",
+        return executeCall(httpClient,
+            "close",
             request,
             response -> true, // OK
             response ->  // BAD
@@ -200,7 +210,8 @@ public class GitHubClient {
             .header(HttpHeaders.AUTHORIZATION, credentials)
             .build();
 
-        return executeCall("files",
+        return executeCall(httpClient,
+            "files",
             request,
             response -> {
                 final var files = unmarshallList(response.body(), File.class);
@@ -209,34 +220,56 @@ public class GitHubClient {
     }
 
     /**
-     * Downloads the response (body) to the given url directly.
-     * @param url href to the download
-     * @param target file to store the download to
+     * Downloads the repository contents at 'ref' as a zip and places it into the target directory.
+     * @param repositoryName the repository
+     * @param ref the GIT ref in the repository
+     * @param targetDir the target dir to place the download in
      * @throws GitHubDownloadException when the download fails due to IO errors
      */
-    public boolean downloadFile(String url, Path target) {
+    public boolean downloadRepoContent(RepositoryName repositoryName, String ref, Path targetDir) {
         final var credentials = buildCredentialsFromCurrentAuth();
+        final var url = urls.repositoryContents(repositoryName, ref);
+
+        if (!Files.isDirectory(targetDir)) {
+            logger.error("target directory does not exist or is no directory [{}]", targetDir);
+            return false;
+        }
 
         final var request = new Request.Builder()
             .url(url)
             .get()
             .header(HttpHeaders.AUTHORIZATION, credentials)
-            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.RAW)
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
             .build();
 
-        return executeCall("download",
+        // large downloads can take longer than call timeout
+        final var clientWithoutTimeout = httpClient.newBuilder()
+            .callTimeout(Duration.ZERO)
+            .build();
+
+        return executeCall(clientWithoutTimeout,
+            "downloadRepoContent",
             request,
             response -> {
-                downloadToTarget(response, target);
+                downloadToTarget(response, targetDir);
                 return true;
             });
     }
 
-    private <R> R executeCall(String callName, Request request, Function<Response, R> successHandler) {
-        return executeCall(callName, request, successHandler, defaultBadStatusHandler());
+    private <R> R executeCall(OkHttpClient httpClient,
+                              String callName,
+                              Request request,
+                              Function<Response, R> successHandler) {
+
+        return executeCall(httpClient,
+            callName,
+            request,
+            successHandler,
+            defaultBadStatusHandler());
     }
 
-    private <R> R executeCall(String callName,
+    private <R> R executeCall(OkHttpClient httpClient,
+                              String callName,
                               Request request,
                               Function<Response, R> successHandler,
                               Function<Response, R> badStatusHandler) {
@@ -312,16 +345,30 @@ public class GitHubClient {
         }
     }
 
-    private void downloadToTarget(Response response, Path target) {
+    private void downloadToTarget(Response response, Path targetDir) {
         final var body = response.body();
         if (body == null) {
             throw new GitHubExecutionException("tried to download a null body");
         }
-        try (InputStream in = body.byteStream()) {
-            Files.copy(in, target);
+
+        final var filename = extractFilename(response);
+        final var target = targetDir.resolve(filename);
+
+        try {
+            Files.copy(body.byteStream(), target);
         } catch (IOException e) {
-            throw new GitHubDownloadException("error downloading file to target " + target, e);
+            throw new GitHubDownloadException("error downloading file to target directory " + targetDir, e);
         }
+    }
+
+    static String extractFilename(Response response) {
+        final String headerValue = response.header(HttpHeaders.CONTENT_DISPOSITION);
+        if (headerValue == null) {
+            logger.warn("missing content disposition header");
+            throw new GitHubDownloadException("missing content disposition header");
+        }
+
+        return ContentDisposition.parse(headerValue).getFilename();
     }
 
     private static String buildCredentialsFromCurrentAuth() {

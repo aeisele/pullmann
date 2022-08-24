@@ -8,6 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.patch;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.temporaryRedirect;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,6 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -390,37 +392,48 @@ class GitHubClientIntegrationTest {
                 assertThat(file.sha()).isEqualTo("bbcd538c8e72b8c175046e27cc8f907076331401");
                 assertThat(file.filename()).isEqualTo("file1.txt");
                 assertThat(file.rawUrl()).isEqualTo(
-                    "https://github.com/octocat/Hello-World/blob/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt");
-                assertThat(file.blobUrl()).isEqualTo(
                     "https://github.com/octocat/Hello-World/raw/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt");
+                assertThat(file.blobUrl()).isEqualTo(
+                    "https://github.com/octocat/Hello-World/blob/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt");
             });
     }
 
     @WithMockUser(username = "test_user", password = "test")
     @Test
-    void downloadFile_ok(WireMockRuntimeInfo wmRuntimeInfo) throws IOException {
-        final var path = "/octocat/Hello-World/blob/6dcb09b5b57875f334f61aebed695e2e4193db5e/file1.txt";
-        final var downloadUrl = wmRuntimeInfo.getHttpBaseUrl() + path;
+    void downloadRepoContent_ok(WireMockRuntimeInfo wireMockRuntimeInfo) throws IOException {
+        final var zipPath = "/octocat/Hello-World/legacy.zip/5bed3c62446116728f65e3809210bb605f11e687";
+        final var ref = "5bed3c62446116728f65e3809210bb605f11e687";
+        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final var zipName = "aeisele-pullman-playgournd-5bed3c6.zip";
+        final var contentDisposition = ContentDisposition.attachment()
+            .filename(zipName)
+            .build();
         final var fileContent = new byte[2048];
         ThreadLocalRandom.current().nextBytes(fileContent);
 
-        stubFor(get(urlPathEqualTo(path))
+        stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/zipball/5bed3c62446116728f65e3809210bb605f11e687"))
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .willReturn(temporaryRedirect(wireMockRuntimeInfo.getHttpBaseUrl() + zipPath)));
+
+        stubFor(get(zipPath)
             .withBasicAuth("test_user", "test")
             .willReturn(aResponse()
                 .withStatus(HttpStatus.OK.value())
-                .withBody(fileContent)
-            ));
+                .withHeader(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                .withBody(fileContent)));
 
         try (final var fs = Jimfs.newFileSystem(Configuration.unix())) {
             final var directory = fs.getPath("dir");
             Files.createDirectories(directory);
 
-            final var target = directory.resolve("file1.txt");
-
-            final var success = gitHubClient.downloadFile(downloadUrl, target);
+            final var success = gitHubClient.downloadRepoContent(repositoryName, ref, directory);
             assertThat(success).isTrue();
 
-            final var contentDownloaded = Files.readAllBytes(target);
+            final var downloaded = directory.resolve(zipName);
+            assertThat(downloaded).exists();
+
+            final var contentDownloaded = Files.readAllBytes(downloaded);
             assertThat(contentDownloaded).isEqualTo(fileContent);
         }
     }

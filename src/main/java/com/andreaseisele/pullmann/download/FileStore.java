@@ -9,9 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -23,9 +22,8 @@ public class FileStore {
 
     private static final String DIR_DOWNLOAD = "downloads";
     private static final String DIR_PRS = "pulls";
-    private static final String DIR_OBJECTS = "objects";
-    private static final String FILE_PR_ZIP = "pr.zip";
-    private static final String FILE_OBJECT = "blob.bin";
+
+    private static final String EXT_ZIP = ".zip";
 
     private static final int OFFSET_PR_HEAD_SHA = -2;
     private static final int OFFSET_PR_NUMBER = -3;
@@ -41,47 +39,18 @@ public class FileStore {
         this.root = initRootDirectory();
     }
 
-    // <root>/downloads/<owner>/<repo>/pulls/<number>/<head sha>/objects/<file sha>/blob.bin
-    public Path getForFile(FileDownload fileDownload) {
-        final var pullRequestDownload = fileDownload.parentDownload();
-
-        final Path directory = resolvePrRoot(pullRequestDownload)
-            .resolve(DIR_OBJECTS)
-            .resolve(fileDownload.sha());
-
-        return mkdirs(directory).resolve(FILE_OBJECT);
-    }
-
-    // <root>/downloads/<owner>/<repo>/pulls/<number>/<head sha>/pr.zip
+    // <root>/downloads/<owner>/<repo>/pulls/<number>/<head sha>/
     public Path getForPullRequest(PullRequestDownload pullRequestDownload) {
-        return resolvePrRoot(pullRequestDownload).resolve(FILE_PR_ZIP);
-    }
+        final var coordinates = pullRequestDownload.coordinates();
 
-    public void zipUp(PullRequestDownload pullRequestDownload, List<DownloadedFile> downloaded) {
-        logger.debug("starting zip file construction [{}]", pullRequestDownload);
+        final Path directory = root.resolve(DIR_DOWNLOAD)
+            .resolve(coordinates.repositoryName().owner())
+            .resolve(coordinates.repositoryName().repository())
+            .resolve(DIR_PRS)
+            .resolve(String.valueOf(coordinates.number()))
+            .resolve(pullRequestDownload.headSha());
 
-        final var target = getForPullRequest(pullRequestDownload);
-        try (var fos = Files.newOutputStream(target);
-             var zos = new ZipOutputStream(fos)) {
-            for (var file : downloaded) {
-                addFile(zos, file);
-            }
-        } catch (IOException e) {
-            throw new GitHubStorageException("error zipping up files", e);
-        }
-
-        logger.debug("done with zip file construction at [{}]", target);
-    }
-
-    public void removeZip(PullRequestDownload pullRequestDownload) {
-        logger.info("attempting to remove pull request zip [{}]", pullRequestDownload);
-
-        final var target = getForPullRequest(pullRequestDownload);
-        try {
-            Files.deleteIfExists(target);
-        } catch (IOException e) {
-            logger.warn("unable to delete pull request zip", e);
-        }
+        return mkdirs(directory);
     }
 
     public List<PullRequestDownload> findFinished() {
@@ -93,36 +62,51 @@ public class FileStore {
             return Collections.emptyList();
         }
 
-        try (final var pathStream = Files.find(downloadDirectory, 6, (path, attrs) -> path.endsWith(FILE_PR_ZIP))) {
+        try (final var pathStream = Files.find(downloadDirectory,
+            6,
+            (path, attrs) -> !attrs.isDirectory()
+                && path.getFileName().toString()
+                .toLowerCase(Locale.ROOT)
+                .endsWith(EXT_ZIP))) {
+
             return pathStream
                 .map(FileStore::tryReconstructDownload)
                 .flatMap(Optional::stream)
                 .toList();
+
         } catch (IOException e) {
             throw new GitHubStorageException("error reconstructing downloads from disk", e);
         }
     }
 
-    private void addFile(ZipOutputStream zos, DownloadedFile file) throws IOException {
-        logger.debug("adding file to zip [{}]", file);
+    public Optional<Path> findZip(PullRequestDownload pullRequestDownload) {
+        final var prDirectory = getForPullRequest(pullRequestDownload);
 
-        var fileEntry = new ZipEntry(file.download().filename());
-        zos.putNextEntry(fileEntry);
-        Files.copy(file.path(), zos);
-        zos.closeEntry();
+        try (var pathStream = Files.find(prDirectory, 1, (path, attrs) -> !attrs.isDirectory()
+            && path.getFileName().toString()
+            .toLowerCase(Locale.ROOT)
+            .endsWith(EXT_ZIP))) {
+
+            return pathStream.findAny();
+
+        } catch (IOException e) {
+            logger.error("error finding pull request zip at [{}]", prDirectory);
+            return Optional.empty();
+        }
     }
 
-    private Path resolvePrRoot(PullRequestDownload pullRequestDownload) {
-        final var coordinates = pullRequestDownload.coordinates();
+    public void deleteZip(PullRequestDownload pullRequestDownload) {
+        final var zip = findZip(pullRequestDownload);
+        if (zip.isEmpty()) {
+            logger.warn("tried to delete non-existing zip for [{}]", pullRequestDownload);
+            return;
+        }
 
-        final Path directory = root.resolve(DIR_DOWNLOAD)
-            .resolve(coordinates.repositoryName().owner())
-            .resolve(coordinates.repositoryName().repository())
-            .resolve(DIR_PRS)
-            .resolve(String.valueOf(coordinates.number()))
-            .resolve(pullRequestDownload.headSha());
-
-        return mkdirs(directory);
+        try {
+            Files.deleteIfExists(zip.get());
+        } catch (IOException e) {
+            logger.error("error deleting zip", e);
+        }
     }
 
     private Path initRootDirectory() {
