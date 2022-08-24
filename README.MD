@@ -2,10 +2,72 @@
 a _Pull Request_ manager
 
 ## Build
-TODO
+It's a standard maven build.
+```
+mvnw package
+```
+
+## Usage
+
+The web app runs on `http://localhost:8080` by default.
+
+Login with a GitHub username and the string value of a _personal access token_.
+
+### Repos Page
+
+This page serves as the home page after login and lists all repositories the user has direct access to.
+This does not include all public GitHub repositories.
+
+From here it is possible to navigate to the _Pulls_ page by clicking on a repository.
+
+### Pulls Page
+
+This page displays all pull requests in a given repository. The list is paginated with an item size of 30.
+
+If no repository was chosen (via _Repos_ page) it is also possible to directly specify the repository via
+text input. The input format is `owner/repository`.
+
+Clicking on a pull request navigates to the 'Pull Request Details' page.
+
+### Pull Request Details Page
+
+This page lists further details about the chosen pull request.
+
+If the given pull request is not closed it can be closed here.
+
+If the given pull request is merge-able (as per the API), the user can request the merge here.
+The merge will use a predefined commit message and the last known head revision of the underlying branch
+to guard against merging unseen changes.
+
+For any pull request it is possible to request the download of a zip archive containing the repository
+state at the head revision of the pull request. This action navigates to the _Downloads_ page.
+
+### Downloads Page
+
+The _Downloads_ page displays all current and past downloads requested.
+
+A download can be in the following states:
+  - Running
+  - Finished
+  - Error
+
+If a download is in the _Finished_ state it can be retrieved via the _Get Zip_ action.
+
+If a download is not _Running_ it can be deleted. 
+
+If a download gets requested (via the _Pull Request Details_ page) that already exists, it is not executed
+again regardless of its state.
 
 ## Configuration
-TODO
+
+As this is _Spring Boot_ application the default configuration source hierarchy applies,
+see [Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config).
+
+### Local Development
+
+For local development it is advantageous to copy the file `application-local.properties.template` to a new
+file `application-local.properties` and then run the application with the active spring profile `local`, e.g.
+via `-Dspring.profiles.active=local`.
 
 ## Design Decisions
 
@@ -59,3 +121,10 @@ bundles though.
 Currently there are rudimentary _Server Side Events_ to basically trigger a reload of the downloads page
 on status changes. Due to all kinds of edge cases regarding browser compatibility / settings this is not
 a super solid solution.
+
+### Handling of user permissions
+
+The OAuth scopes of a GitHub access token are quite broad. Even though we take the scopes and turn them
+into _Spring Security's authorities_ this is not enough to make fine granular decisions. Such decisions
+would include whether a user can even merge a pull request or not. At the moment users may see actions
+which in turn will be denied by the API for permission reasons.
