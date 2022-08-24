@@ -61,8 +61,14 @@
                                        th:text="#{downloads.action.zip}">[Get Zip]</a>
                                 </div>
 
-                                <form class="p-1 m-0 border-0" th:action="@{/downloads/delete/{owner}/{repo}/{number}/{headSha}(owner=${owner}, repo=${repo}, number=${number}, headSha=${entry.getKey().headSha()})}" method="post">
-                                    <button role="button" type="submit" class="btn btn-danger" th:text="#{downloads.action.delete}">[Delete]</button>
+                                <form class="p-1 m-0 border-0"
+                                      th:action="@{/downloads/delete/{owner}/{repo}/{number}/{headSha}(owner=${owner}, repo=${repo}, number=${number}, headSha=${entry.getKey().headSha()})}"
+                                      method="post">
+                                    <button role="button"
+                                            type="submit"
+                                            th:classappend="${entry.getValue().name() == 'RUNNING' ? 'disabled' : ''}"
+                                            class="btn btn-danger"
+                                            th:text="#{downloads.action.delete}">[Delete]</button>
                                 </form>
                             </div>
                         </div>

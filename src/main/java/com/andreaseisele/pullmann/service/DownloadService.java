@@ -63,6 +63,8 @@ public class DownloadService {
             logger.info("pull request download already done [{}]", download);
         } else if (state == DownloadState.ERROR) {
             logger.info("pull request download is in error state [{}]", download);
+        } else if (state == DownloadState.RUNNING) {
+            emitEvent();
         }
     }
 
@@ -75,9 +77,14 @@ public class DownloadService {
     }
 
     public void deleteZip(PullRequestDownload download) {
-        fileStore.deleteZip(download);
-        downloads.remove(download);
-        emitEvent();
+        downloads.computeIfPresent(download, (k, state) -> {
+            if (state != DownloadState.RUNNING) {
+                fileStore.deleteZip(download);
+                emitEvent();
+                return null;
+            }
+            return state;
+        });
     }
 
     public void registerEmitter(SseEmitter emitter) {
