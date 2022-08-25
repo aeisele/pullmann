@@ -5,10 +5,10 @@ a _Pull Request_ manager
 
  - Java 17
  - Maven 3
- - a GitHub access token with scopes "read:user" and "repo"
+ - a GitHub access token with at least scopes "read:user" and "repo"
 
 ## Build
-It's a standard maven build.
+It's a standard Maven build.
 ```
 mvnw package
 ```
@@ -46,14 +46,16 @@ Login with a GitHub username and the string value of a _personal access token_.
 
 ### Repos Page
 
+![repos](doc/repos.PNG)
+
 This page serves as the home page after login and lists all repositories the user has direct access to.
 This does not include all public GitHub repositories.
 
 From here it is possible to navigate to the _Pulls_ page by clicking on a repository.
 
-![repos](doc/repos.PNG)
-
 ### Pulls Page
+
+![pulls](doc/pulls.PNG)
 
 This page displays all pull requests in a given repository. The list is paginated with an item size of 30.
 
@@ -64,9 +66,9 @@ text input. The input format is `owner/repository`.
 
 Clicking on a pull request navigates to the 'Pull Request Details' page.
 
-![pulls](doc/pulls.PNG)
-
 ### Pull Request Details Page
+
+![pr_details](doc/pr_details.PNG)
 
 This page lists further details about the chosen pull request.
 
@@ -79,9 +81,9 @@ to guard against merging unseen changes.
 For any pull request it is possible to request the download of a zip archive containing the repository
 state at the head revision of the pull request. This action navigates to the _Downloads_ page.
 
-![pr_details](doc/pr_details.PNG)
-
 ### Downloads Page
+
+![downloads](doc/downloads.PNG)
 
 The _Downloads_ page displays all current and past downloads requested.
 
@@ -96,8 +98,6 @@ If a download is not _Running_ it can be deleted.
 
 If a download gets requested (via the _Pull Request Details_ page) that already exists, it is not executed
 again regardless of its state.
-
-![downloads](doc/downloads.PNG)
 
 ## Design Decisions
 
@@ -148,7 +148,7 @@ are thinkable:
  - Functional `Either` composition
  - Runtime Exceptions
 
-Java comes with `Option` but not with monoic `Either`type and constructing one would be too complex for this
+Java comes with `Option` but not with monoic `Either` type and constructing one would be too complex for this
 task.
 
 At the same time custom generic result types sooner or later tend to mimic the usage pattern of
@@ -157,7 +157,7 @@ cost due to not needing any stacktrace construction. Their disadvantage is the c
 one usually has to invoke check methods like `Result#isOk` before using the payload.
 
 Hence the design decision to use runtime exceptions here even when their usage is sometimes frowned upon.
-To alleviate the cost of stack trace construction we will use so called _lite weight exceptions_ that don't
+To alleviate the cost of stack trace construction we will use so called _lite weight exceptions_ which don't
 carry stack traces. This is in no way a perfect solution and not a proposal in general, but it fits with
 the task.
 
@@ -172,7 +172,7 @@ and the surrounding DTOs / value types are responsible for that.
 
 The cache for the downloaded zip files is made out of two parts.
 
-The in memory portion can be found in the class `DownloadService`. Downloads and their current states
+The in-memory portion can be found in the class `DownloadService`. Downloads and their current states
 are kept in a `ConcurrentHashMap`. The interaction methods are supposed to make sure all state transitions
 happen in a valid order.
 
