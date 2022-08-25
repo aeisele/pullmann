@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.GitHubProperties;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,6 +95,53 @@ class FileStoreTest {
         final Optional<PullRequestDownload> reconstructed = FileStore.tryReconstructDownload(zipPath);
 
         assertThat(reconstructed).isEmpty();
+    }
+
+    @Test
+    void findZip() throws IOException {
+        final Path zipPath = tempDir.resolve("downloads")
+            .resolve("octocat")
+            .resolve("Hello-World")
+            .resolve("pulls")
+            .resolve("1")
+            .resolve("6dcb09b5b57875f334f61aebed695e2e4193db5e")
+            .resolve("aeisele-pullman-playgournd-5bed3c6.zip");
+        Files.createDirectories(zipPath.getParent());
+        Files.createFile(zipPath);
+
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1);
+        final String ref = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
+        final PullRequestDownload download = new PullRequestDownload(coordinates, ref);
+
+        final FileStore fileStore = new FileStore(properties);
+
+        final Optional<Path> maybeZip = fileStore.findZip(download);
+
+        assertThat(maybeZip).contains(zipPath);
+    }
+
+    @Test
+    void findZip_missing() throws IOException {
+        final Path zipPath = tempDir.resolve("downloads")
+            .resolve("octocat")
+            .resolve("Hello-World")
+            .resolve("pulls")
+            .resolve("1")
+            .resolve("6dcb09b5b57875f334f61aebed695e2e4193db5e")
+            .resolve("aeisele-pullman-playgournd-5bed3c6.zip");
+        Files.createDirectories(zipPath.getParent());
+
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1);
+        final String ref = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
+        final PullRequestDownload download = new PullRequestDownload(coordinates, ref);
+
+        final FileStore fileStore = new FileStore(properties);
+
+        final Optional<Path> maybeZip = fileStore.findZip(download);
+
+        assertThat(maybeZip).isEmpty();
     }
 
 }
