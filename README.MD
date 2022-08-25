@@ -129,6 +129,28 @@ necessitate feeding back those URLs into request parameters. This could be probl
 would still need to verify that the URLs are genuine and not malicious. So for the time being URLs
 will be constructed as stated in GitHub's API documentation.
 
+### DD.5 Business errors
+
+It is a reoccurring question on how to handle errors in business logic. A number of different approaches
+are thinkable:
+ - Checked Exceptions
+ - Result Types
+ - Functional `Either` composition
+ - Runtime Exceptions
+
+Java comes with `Option` but not with monoic `Either`type and constructing one would be too complex for this
+task.
+
+At the same time custom generic result types sooner or later tend to mimic the usage pattern of
+classic exceptions (causes, message concatenation, etc.) . Their only advantage is the cheaper runtime
+cost due to not needing any stacktrace construction. Their disadvantage is the custom usage pattern where
+one usually has to invoke check methods like `Result#isOk` before using the payload.
+
+Hence the design decision to use runtime exceptions here even when their usage is sometimes frowned upon.
+To alleviate the cost of stack trace construction we will use so called _lite weight exceptions_ that don't
+carry stack traces. This is in no way a perfect solution and not a proposal in general, but it fits with
+the task.
+
 ## Points of Interest
 
 ### API Integration
