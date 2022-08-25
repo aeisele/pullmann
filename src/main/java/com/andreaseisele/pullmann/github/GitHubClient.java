@@ -21,6 +21,7 @@ import com.andreaseisele.pullmann.github.error.GitHubSerializationException;
 import com.andreaseisele.pullmann.github.result.FileResult;
 import com.andreaseisele.pullmann.github.result.MergeResult;
 import com.andreaseisele.pullmann.github.result.PullRequestResult;
+import com.andreaseisele.pullmann.github.result.RepositoryResult;
 import com.andreaseisele.pullmann.github.result.UserResult;
 import com.andreaseisele.pullmann.security.AuthenticationHolder;
 import com.andreaseisele.pullmann.security.GitHubUserDetails;
@@ -96,9 +97,9 @@ public class GitHubClient {
             });
     }
 
-    public List<Repository> userRepos() {
+    public RepositoryResult userRepos(int page) {
         final String credentials = buildCredentialsFromCurrentAuth();
-        final HttpUrl url = urls.userRepos();
+        final HttpUrl url = urls.userRepos(page);
         final Request request = new Request.Builder()
             .url(url)
             .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
@@ -108,7 +109,10 @@ public class GitHubClient {
         return executeCall(httpClient,
             "userRepos",
             request,
-            response -> unmarshallList(response.body(), Repository.class));
+            response -> {
+                final List<Repository> repositories = unmarshallList(response.body(), Repository.class);
+                return RepositoryResult.of(repositories, page, response.header(HttpHeaders.LINK));
+            });
     }
 
     public PullRequestResult pullRequestsForRepo(RepositoryName repositoryName, int page) {

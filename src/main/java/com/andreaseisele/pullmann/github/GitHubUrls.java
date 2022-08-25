@@ -17,6 +17,10 @@ public class GitHubUrls {
     private static final String PATH_PULL_REQUEST_FILES = PATH_PULL_REQUEST_DETAILS + "/files";
     private static final String PATH_REPO_CONTENTS = "repos/{owner}/{repository}/zipball/{ref}";
 
+    private static final String QUERY_PARAM_PAGE = "page";
+    private static final String QUERY_PARAM_STATE = "state";
+    private static final String QUERY_PARAM_PER_PAGE = "per_page";
+
     private final GitHubProperties properties;
 
     public GitHubUrls(GitHubProperties properties) {
@@ -27,16 +31,18 @@ public class GitHubUrls {
         return parseBaseUrl().resolve(PATH_USER);
     }
 
-    public HttpUrl userRepos() {
-        return parseBaseUrl().resolve(PATH_USER_REPOS);
+    public HttpUrl userRepos(int page) {
+        return builderFor(PATH_USER_REPOS)
+            .setQueryParameter(QUERY_PARAM_PAGE, String.valueOf(page))
+            .build();
     }
 
     public HttpUrl pullRequests(RepositoryName repositoryName, int page, String state) {
         return builderFor(PATH_PULL_REQUESTS)
             .setPathSegment(1, repositoryName.owner())
             .setPathSegment(2, repositoryName.repository())
-            .setQueryParameter("page", String.valueOf(page))
-            .setQueryParameter("state", state)
+            .setQueryParameter(QUERY_PARAM_PAGE, String.valueOf(page))
+            .setQueryParameter(QUERY_PARAM_STATE, state)
             .build();
     }
 
@@ -61,8 +67,8 @@ public class GitHubUrls {
             .setPathSegment(1, coordinates.repositoryName().owner())
             .setPathSegment(2, coordinates.repositoryName().repository())
             .setPathSegment(4, String.valueOf(coordinates.number()))
-            .setQueryParameter("page", String.valueOf(page))
-            .setQueryParameter("per_page", String.valueOf(perPage))
+            .setQueryParameter(QUERY_PARAM_PAGE, String.valueOf(page))
+            .setQueryParameter(QUERY_PARAM_PER_PAGE, String.valueOf(perPage))
             .build();
     }
 

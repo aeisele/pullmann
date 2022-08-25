@@ -25,6 +25,7 @@ import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.result.FileResult;
 import com.andreaseisele.pullmann.github.result.MergeResult;
 import com.andreaseisele.pullmann.github.result.PullRequestResult;
+import com.andreaseisele.pullmann.github.result.RepositoryResult;
 import com.andreaseisele.pullmann.github.result.UserResult;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
@@ -128,18 +129,27 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void userRepos_ok() {
-        stubFor(get("/user/repos")
+        final String linkHeaderValue =
+            "<http://localhost/user/repositories/?page=2>; rel=\"next\", <http://localhost/user/repositories/?page=11>; rel=\"last\"";
+
+        stubFor(get(urlPathEqualTo("/user/repos"))
             .withBasicAuth("test_user", "test")
             .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
             .willReturn(aResponse()
                 .withStatus(HttpStatus.OK.value())
                 .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withHeader(HttpHeaders.LINK, linkHeaderValue)
                 .withBodyFile("user_repos.json")
             )
         );
 
-        final List<Repository> repositories = gitHubClient.userRepos();
+        final RepositoryResult result = gitHubClient.userRepos(1);
 
+        assertThat(result).isNotNull();
+        assertThat(result.getPage()).isEqualTo(1);
+        assertThat(result.getMaxPages()).isEqualTo(11);
+
+        final List<Repository> repositories = result.getList();
         assertThat(repositories)
             .hasSize(1)
             .anySatisfy(repository -> {
@@ -176,7 +186,7 @@ class GitHubClientIntegrationTest {
         assertThat(result.getPage()).isEqualTo(1);
         assertThat(result.getMaxPages()).isEqualTo(11);
 
-        final List<PullRequest> pullRequests = result.getPullRequests();
+        final List<PullRequest> pullRequests = result.getList();
         assertThat(pullRequests)
             .hasSize(1)
             .anySatisfy(pr -> {
@@ -218,7 +228,7 @@ class GitHubClientIntegrationTest {
         final PullRequestResult result = gitHubClient.pullRequestsForRepo(repositoryName, 1);
 
         assertThat(result).isNotNull();
-        assertThat(result.getPullRequests()).isEmpty();
+        assertThat(result.getList()).isEmpty();
     }
 
     @WithMockUser(username = "test_user", password = "test")
@@ -396,7 +406,7 @@ class GitHubClientIntegrationTest {
         assertThat(result).isNotNull();
         assertThat(result.getPage()).isEqualTo(1);
         assertThat(result.getMaxPages()).isEqualTo(11);
-        assertThat(result.getFiles())
+        assertThat(result.getList())
             .hasSize(1)
             .anySatisfy(file -> {
                 assertThat(file.sha()).isEqualTo("bbcd538c8e72b8c175046e27cc8f907076331401");

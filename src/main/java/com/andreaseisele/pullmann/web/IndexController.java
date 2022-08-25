@@ -1,5 +1,6 @@
 package com.andreaseisele.pullmann.web;
 
+import com.andreaseisele.pullmann.github.result.RepositoryResult;
 import com.andreaseisele.pullmann.service.RepositoryService;
 import javax.validation.constraints.Positive;
 import org.springframework.stereotype.Controller;
@@ -21,9 +22,15 @@ public class IndexController {
     }
 
     @GetMapping
-    public String index(Model model,
-                        @Positive @RequestParam(value = "page", required = false, defaultValue = "1") Integer page) {
-        model.addAttribute("repositories", repositoryService.listRepositories());
+    public String index(@Positive @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
+                        Model model) {
+
+        final RepositoryResult result = repositoryService.listRepositories(page);
+
+        model.addAttribute("repositories", result.getList());
+        model.addAttribute("page", result.getPage());
+        model.addAttribute("maxPages", result.getMaxPages());
+
         return "index";
     }
 

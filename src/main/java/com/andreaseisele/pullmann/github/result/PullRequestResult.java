@@ -6,16 +6,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-public class PullRequestResult {
+public class PullRequestResult extends PagedResult<PullRequest> {
 
-    private final List<PullRequest> pullRequests;
-    private final int page;
-    private final int maxPages;
-
-    private PullRequestResult(List<PullRequest> pullRequests, int page, int maxPages) {
-        this.pullRequests = pullRequests;
-        this.page = page;
-        this.maxPages = maxPages;
+    private PullRequestResult(List<PullRequest> list, int page, int maxPages) {
+        super(list, page, maxPages);
     }
 
     public static PullRequestResult of(List<PullRequest> pullRequests, int page, String linkInfo) {
@@ -25,18 +19,6 @@ public class PullRequestResult {
 
     public static PullRequestResult empty() {
         return new PullRequestResult(Collections.emptyList(), 1, 1);
-    }
-
-    public List<PullRequest> getPullRequests() {
-        return pullRequests;
-    }
-
-    public int getPage() {
-        return page;
-    }
-
-    public int getMaxPages() {
-        return maxPages;
     }
 
 }

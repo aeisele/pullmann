@@ -50,7 +50,7 @@ public class PullRequestController {
             model.addAttribute("repoFullName", repoFullName);
             model.addAttribute("owner", repositoryName.owner());
             model.addAttribute("repo", repositoryName.repository());
-            model.addAttribute("pulls", result.getPullRequests());
+            model.addAttribute("pulls", result.getList());
             model.addAttribute("page", result.getPage());
             model.addAttribute("maxPages", result.getMaxPages());
         }
