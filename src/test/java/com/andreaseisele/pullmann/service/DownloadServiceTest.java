@@ -52,7 +52,7 @@ class DownloadServiceTest {
     }
 
     @Test
-    void startDownload() {
+    void startDownloadAndDelete() {
         final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
         final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1);
         final String ref = "5bed3c62446116728f65e3809210bb605f11e687";
@@ -73,6 +73,52 @@ class DownloadServiceTest {
             .atMost(Duration.ofSeconds(5))
             .untilAsserted(() ->
                 assertThat(service.getDownloads()).containsEntry(download, DownloadState.FINISHED));
+
+        service.deleteZip(download);
+
+        assertThat(service.getDownloads()).doesNotContainKey(download);
+    }
+
+    @Test
+    void startDownload_errorAndDelete() {
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1);
+        final String ref = "5bed3c62446116728f65e3809210bb605f11e687";
+        final PullRequestDownload download = new PullRequestDownload(coordinates, ref);
+        final BranchInfo head = new BranchInfo("main", "main", ref);
+        final PullRequest pullRequest = new PullRequest(1L, 1L, null, null, null, null, null, head, null, 0L, false, false);
+
+        when(fileStore.getForPullRequest(download)).thenReturn(Path.of(""));
+
+        when(gitHubClient.pullRequestDetails(coordinates)).thenReturn(pullRequest);
+
+        when(gitHubClient.downloadRepoContent(eq(repositoryName), eq(ref), any(Path.class)))
+            .thenAnswer(AdditionalAnswers.answersWithDelay(2000, invocation -> {
+                throw new RuntimeException("something happened");
+            }));
+
+        service.startDownload(coordinates);
+
+        await()
+            .atMost(Duration.ofSeconds(5))
+            .untilAsserted(() ->
+                assertThat(service.getDownloads()).containsEntry(download, DownloadState.ERROR));
+
+        service.deleteZip(download);
+
+        assertThat(service.getDownloads()).doesNotContainKey(download);
+    }
+
+    @Test
+    void deleteZip_notExisting() {
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1);
+        final String ref = "5bed3c62446116728f65e3809210bb605f11e687";
+        final PullRequestDownload download = new PullRequestDownload(coordinates, ref);
+
+        service.deleteZip(download);
+
+        assertThat(service.getDownloads()).doesNotContainKey(download);
     }
 
 }
