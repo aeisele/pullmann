@@ -72,11 +72,17 @@
 
         <div class="btn-group mb-3" role="group">
             <form class="p-1 m-0 border-0" th:action="@{/pulls/merge/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">
-                <button type="submit" th:classappend="${canMerge && writeAllowed ? '' : 'disabled'}" class="btn btn-primary" th:text="#{prDetails.action.merge}">Merge</button>
+                <button id="merge-button" type="submit" th:classappend="${canMerge && writeAllowed ? '' : 'disabled'}" class="btn btn-primary">
+                    <span class="spinner-border spinner-border-sm visually-hidden" role="status" aria-hidden="true"></span>
+                    <span class="hide-me" th:text="#{prDetails.action.merge}">[Merge]</span>
+                </button>
             </form>
 
             <form class="p-1 m-0 border-0" th:action="@{/pulls/close/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">
-                <button type="submit" th:classappend="${pr.state().name() == 'CLOSED' || !writeAllowed ? 'disabled' : ''}" class="btn btn-primary" th:text="#{prDetails.action.close}">Close</button>
+                <button id="close-button" type="submit" th:classappend="${pr.state().name() == 'CLOSED' || !writeAllowed ? 'disabled' : ''}" class="btn btn-primary">
+                    <span class="spinner-border spinner-border-sm visually-hidden" role="status" aria-hidden="true"></span>
+                    <span class="hide-me" th:text="#{prDetails.action.close}">[Close]</span>
+                </button>
             </form>
 
             <form class="p-1 m-0 border-0" th:action="@{/pulls/download/{owner}/{repo}/{number}(owner = ${owner}, repo=${repo}, number=${pr.number()})}" method="post">
@@ -102,6 +108,29 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
         crossorigin="anonymous"></script>
+
+<script type="application/javascript">
+    const buttons = [];
+    buttons.push(document.querySelector("#merge-button"));
+    buttons.push(document.querySelector("#close-button"));
+
+    const spinnerHandler = (evt) => {
+
+        buttons.forEach((btn) => {
+            btn.setAttribute('disabled', '');
+        })
+
+        const target = evt.currentTarget;
+        const spinner = target.querySelector(".spinner-border");
+        spinner.classList.remove('visually-hidden');
+        const text = target.querySelector(".hide-me");
+        text.classList.add('visually-hidden');
+    }
+
+    buttons.forEach((btn) => {
+        btn.addEventListener('click', spinnerHandler);
+    });
+</script>
 
 </body>
 </html>
