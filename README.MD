@@ -51,6 +51,8 @@ This does not include all public GitHub repositories.
 
 From here it is possible to navigate to the _Pulls_ page by clicking on a repository.
 
+![repos](doc/repos.PNG)
+
 ### Pulls Page
 
 This page displays all pull requests in a given repository. The list is paginated with an item size of 30.
@@ -58,7 +60,11 @@ This page displays all pull requests in a given repository. The list is paginate
 If no repository was chosen (via _Repos_ page) it is also possible to directly specify the repository via
 text input. The input format is `owner/repository`.
 
+![repo_input](doc/pulls_input.PNG)
+
 Clicking on a pull request navigates to the 'Pull Request Details' page.
+
+![pulls](doc/pulls.PNG)
 
 ### Pull Request Details Page
 
@@ -72,6 +78,8 @@ to guard against merging unseen changes.
 
 For any pull request it is possible to request the download of a zip archive containing the repository
 state at the head revision of the pull request. This action navigates to the _Downloads_ page.
+
+![pr_details](doc/pr_details.PNG)
 
 ### Downloads Page
 
@@ -88,6 +96,8 @@ If a download is not _Running_ it can be deleted.
 
 If a download gets requested (via the _Pull Request Details_ page) that already exists, it is not executed
 again regardless of its state.
+
+![downloads](doc/downloads.PNG)
 
 ## Design Decisions
 
@@ -197,3 +207,8 @@ make use of that.
 
 Also the download cache could be rewritten to make use of _Spring's_ cache abstraction, then it would be
 possible to switch out the cache in favor of something like _EhCache_ if the need should arise.
+
+### Force logout for expired users
+
+We already know the token lifetime, if we detect that it is in the past we could force a logout. Best way
+to do this would probably be a servlet request filter or _Spring_ interceptor, to apply it globally.
