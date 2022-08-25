@@ -11,6 +11,7 @@ import com.andreaseisele.pullmann.github.dto.MergeRequest;
 import com.andreaseisele.pullmann.github.dto.MergeResponse;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.dto.Repository;
+import com.andreaseisele.pullmann.github.dto.RepositoryPermission;
 import com.andreaseisele.pullmann.github.dto.UpdateRequest;
 import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
@@ -260,6 +261,38 @@ public class GitHubClient {
                 downloadToTarget(response, targetDir);
                 return true;
             });
+    }
+
+    /**
+     * Requests the current users permissions for the given repository.
+     * If the request fails due to missing permissions a permission level of 'NONE' is assumed.
+     * @param repositoryName the repository
+     * @return the users permission
+     */
+    public RepositoryPermission usersRepositoryPermission(RepositoryName repositoryName) {
+        final UsernamePasswordAuthenticationToken authentication = AuthenticationHolder.currentAuthentication();
+        final String username = extractUsername(authentication);
+        final String credentials = buildCredentials(authentication);
+        final HttpUrl url = urls.userRepositoryPermission(repositoryName, username);
+
+        final Request request = new Request.Builder()
+            .url(url)
+            .get()
+            .header(HttpHeaders.AUTHORIZATION, credentials)
+            .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
+            .build();
+
+        return executeCall(httpClient,
+            "usersRepositoryPermission",
+            request,
+            response -> unmarshall(response.body(), RepositoryPermission.class),
+            response -> {
+                if (response.code() == HttpStatus.FORBIDDEN.value()) {
+                    return RepositoryPermission.none();
+                }
+                return GitHubClient.<RepositoryPermission>defaultBadStatusHandler().apply(response);
+            }
+        );
     }
 
     private <R> R executeCall(OkHttpClient httpClient,

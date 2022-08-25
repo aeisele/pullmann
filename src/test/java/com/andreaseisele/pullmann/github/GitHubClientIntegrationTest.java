@@ -20,6 +20,7 @@ import com.andreaseisele.pullmann.github.dto.BranchInfo;
 import com.andreaseisele.pullmann.github.dto.MergeResponse;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import com.andreaseisele.pullmann.github.dto.Repository;
+import com.andreaseisele.pullmann.github.dto.RepositoryPermission;
 import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.result.FileResult;
@@ -40,9 +41,12 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -456,6 +460,40 @@ class GitHubClientIntegrationTest {
             final byte[] contentDownloaded = Files.readAllBytes(downloaded);
             assertThat(contentDownloaded).isEqualTo(fileContent);
         }
+    }
+
+    static Stream<Arguments> argsForUserRepoPermission() {
+        return Stream.of(
+            Arguments.of("user_repository_permission_admin.json", RepositoryPermission.Permission.ADMIN, "admin"),
+            Arguments.of("user_repository_permission_write.json", RepositoryPermission.Permission.WRITE, "write"),
+            Arguments.of("user_repository_permission_read.json", RepositoryPermission.Permission.READ, "read"),
+            Arguments.of("user_repository_permission_none.json", RepositoryPermission.Permission.NONE, "none")
+        );
+    }
+
+    @WithMockUser(username = "test_user", password = "test")
+    @ParameterizedTest
+    @MethodSource("argsForUserRepoPermission")
+    void usersRepositoryPermission_ok(String bodyFile,
+                                      RepositoryPermission.Permission expectedPermission,
+                                      String expectedRole) {
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+
+        stubFor(get("/repos/octocat/Hello-World/collaborators/test_user/permission")
+            .withBasicAuth("test_user", "test")
+            .withHeader(HttpHeaders.ACCEPT, equalTo(GitHubMediaTypes.JSON))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .withBodyFile(bodyFile)
+            )
+        );
+
+        final RepositoryPermission permission = gitHubClient.usersRepositoryPermission(repositoryName);
+
+        assertThat(permission).isNotNull();
+        assertThat(permission.permission()).isEqualTo(expectedPermission);
+        assertThat(permission.roleName()).isEqualTo(expectedRole);
     }
 
     private String expirationIn3Months() {

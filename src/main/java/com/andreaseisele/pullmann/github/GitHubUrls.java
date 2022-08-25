@@ -16,6 +16,7 @@ public class GitHubUrls {
     private static final String PATH_PULL_REQUEST_MERGE = PATH_PULL_REQUEST_DETAILS + "/merge";
     private static final String PATH_PULL_REQUEST_FILES = PATH_PULL_REQUEST_DETAILS + "/files";
     private static final String PATH_REPO_CONTENTS = "repos/{owner}/{repository}/zipball/{ref}";
+    private static final String PATH_USER_REPO_PERMISSION = "repos/{owner}/{repository}/collaborators/{username}/permission";
 
     private static final String QUERY_PARAM_PAGE = "page";
     private static final String QUERY_PARAM_STATE = "state";
@@ -77,6 +78,14 @@ public class GitHubUrls {
             .setPathSegment(1, repositoryName.owner())
             .setPathSegment(2, repositoryName.repository())
             .setPathSegment(4, ref)
+            .build();
+    }
+
+    public HttpUrl userRepositoryPermission(RepositoryName repositoryName, String username) {
+        return builderFor(PATH_USER_REPO_PERMISSION)
+            .setPathSegment(1, repositoryName.owner())
+            .setPathSegment(2, repositoryName.repository())
+            .setPathSegment(4, username)
             .build();
     }
 

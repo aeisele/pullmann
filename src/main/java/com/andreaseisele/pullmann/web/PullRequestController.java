@@ -3,9 +3,11 @@ package com.andreaseisele.pullmann.web;
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
+import com.andreaseisele.pullmann.github.dto.RepositoryPermission;
 import com.andreaseisele.pullmann.github.result.MergeResult;
 import com.andreaseisele.pullmann.github.result.PullRequestResult;
 import com.andreaseisele.pullmann.service.PullRequestService;
+import com.andreaseisele.pullmann.service.RepositoryService;
 import java.util.Optional;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Positive;
@@ -29,8 +31,11 @@ public class PullRequestController {
 
     private final PullRequestService pullRequestService;
 
-    public PullRequestController(PullRequestService pullRequestService) {
+    private final RepositoryService repositoryService;
+
+    public PullRequestController(PullRequestService pullRequestService, RepositoryService repositoryService) {
         this.pullRequestService = pullRequestService;
+        this.repositoryService = repositoryService;
     }
 
     @GetMapping
@@ -73,6 +78,13 @@ public class PullRequestController {
             && pullRequest.state() != PullRequest.State.CLOSED);
         model.addAttribute("owner", owner);
         model.addAttribute("repo", repo);
+
+        final RepositoryPermission permission = repositoryService.permissionForRepository(coordinates.repositoryName());
+        model.addAttribute("repoPermission", permission);
+        final boolean writeAllowed = permission.permission() == RepositoryPermission.Permission.ADMIN
+            || permission.permission() == RepositoryPermission.Permission.WRITE;
+        model.addAttribute("writeAllowed", writeAllowed);
+
         if (merged != null) {
             model.addAttribute("merged", merged);
         }

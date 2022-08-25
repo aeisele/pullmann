@@ -91,7 +91,6 @@ public class DownloadService {
 
     public void registerEmitter(SseEmitter emitter) {
         emitter.onCompletion(() -> eventEmitters.remove(emitter));
-        emitter.onTimeout(emitter::complete);
         eventEmitters.add(emitter);
     }
 
