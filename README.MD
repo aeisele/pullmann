@@ -1,11 +1,42 @@
 # Pull Man
 a _Pull Request_ manager
 
+## Requirements
+
+ - Java 17
+ - Maven 3
+ - a GitHub access token with scopes "read:user" and "repo"
+
 ## Build
 It's a standard maven build.
 ```
 mvnw package
 ```
+
+## Configuration
+
+As this is _Spring Boot_ application the default configuration source hierarchy applies,
+see [Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config).
+
+### Configuration Keys
+
+| Key                                     | Description                                                     | Default Value          |
+|-----------------------------------------|-----------------------------------------------------------------|------------------------|
+| pullman.github.base-url                 | URL all API requests are based on                               | https://api.github.com |
+| pullman.github.timeouts.connect-seconds | HTTP Connect Timeout in seconds                                 | 10                     |
+| pullman.github.timeouts.write-seconds   | HTTP Write Timeout in seconds                                   | 10                     |
+| pullman.github.timeouts.read-seconds    | HTTP Read Timeout in seconds                                    | 10                     |
+| pullman.github.timeouts.call-seconds    | HTTP Call Timeout in seconds (spans the whole HTTP interaction) | 10                     |
+| pullman.github.log-level                | Level of HTTP logging (one of none, basic, headers, body)       | none                   |
+| pullman.github.merge-message            | message for the merge commit                                    | merged via Pullman     |
+| pullman.github.download.location        | Local location for the download cache, must be a file or path   | file:./download_cache  |
+| pullman.github.max-simultaneous         | number of concurrent downloads allowed                          | 10                     |
+
+### Local Development
+
+For local development it is advantageous to copy the file `application-local.properties.template` to a new
+file `application-local.properties` and then run the application with the active spring profile `local`, e.g.
+via `-Dspring.profiles.active=local`.
 
 ## Usage
 
@@ -58,17 +89,6 @@ If a download is not _Running_ it can be deleted.
 If a download gets requested (via the _Pull Request Details_ page) that already exists, it is not executed
 again regardless of its state.
 
-## Configuration
-
-As this is _Spring Boot_ application the default configuration source hierarchy applies,
-see [Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config).
-
-### Local Development
-
-For local development it is advantageous to copy the file `application-local.properties.template` to a new
-file `application-local.properties` and then run the application with the active spring profile `local`, e.g.
-via `-Dspring.profiles.active=local`.
-
 ## Design Decisions
 
 ### DD.1 usage of _boring stack_
@@ -109,16 +129,25 @@ necessitate feeding back those URLs into request parameters. This could be probl
 would still need to verify that the URLs are genuine and not malicious. So for the time being URLs
 will be constructed as stated in GitHub's API documentation.
 
-### DD.5 Type Inference / functional style
+## Points of Interest
 
-Not a design decision per se, but my current IDE settings were geared towards the code style of my other
-projects. Although the usage or over-usage of `var` / `val` is quite subjective, some clients force the
-usage of `var` for every reference via code analysis tools.
+### API Integration
 
-Pro: helps with type migrations
-Con: doesn't help with readability 
+The main interaction with the GitHub rest API happens via the dedicated class `GitHubClient`. This class
+and the surrounding DTOs / value types are responsible for that.
 
-I try to avoid using streams and functional idioms unless it makes the code easier or more readable.
+### Download Cache
+
+The cache for the downloaded zip files is made out of two parts.
+
+The in memory portion can be found in the class `DownloadService`. Downloads and their current states
+are kept in a `ConcurrentHashMap`. The interaction methods are supposed to make sure all state transitions
+happen in a valid order.
+
+The disk portion of the cache is facilitated via the class `FileStore`. This part is responsible with storing
+the zip files in the appropriate file structure and to retrieve them later on.
+
+On application startup both parts work in tandem to re-establish past successful downloads.
 
 ## Missing Stuff
 
@@ -136,4 +165,13 @@ a super solid solution and more like an 'extra'.
 ### Handling of user permissions
 
 The OAuth scopes of a GitHub access token are quite broad. Even though we take the scopes and turn them
-into _Spring Security's authorities_ this is not enough to make fine granular decisions.
+into _Spring Security's authorities_ this is not enough to make fine granular decisions. At the moment
+repository permissions are checked via the collaborators permission endpoint.
+
+### Proper Caching
+
+The GitHub API supports response caching via ETags. OkHttp already comes with an optional cache that could
+make use of that.
+
+Also the download cache could be rewritten to make use of _Spring's_ cache abstraction, then it would be
+possible to switch out the cache in favor of something like _EhCache_ if the need should arise.
