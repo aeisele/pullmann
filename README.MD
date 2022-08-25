@@ -168,6 +168,9 @@ the task.
 The main interaction with the GitHub rest API happens via the dedicated class `GitHubClient`. This class
 and the surrounding DTOs / value types are responsible for that.
 
+Of note would also be the accompanying test cases for the client class. I used _WireMock_ to mimic the
+GitHub API responses, including custom headers and redirects.
+
 ### Download Cache
 
 The cache for the downloaded zip files is made out of two parts.
