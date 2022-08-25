@@ -39,7 +39,7 @@ public class PullRequestService {
 
     @PreAuthorize("isAuthenticated()")
     public MergeResult merge(PullRequestCoordinates coordinates) {
-        final var pullRequest = gitHubClient.pullRequestDetails(coordinates);
+        final PullRequest pullRequest = gitHubClient.pullRequestDetails(coordinates);
         return gitHubClient.merge(coordinates, gitHubProperties.getMergeMessage(), pullRequest.head().sha());
     }
 

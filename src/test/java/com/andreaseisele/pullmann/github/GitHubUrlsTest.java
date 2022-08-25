@@ -12,7 +12,7 @@ class GitHubUrlsTest {
 
     @Test
     void parseBaseUrl_ok() {
-        final var url = "http://localhost:8080";
+        final String url = "http://localhost:8080";
 
         final HttpUrl parsed = GitHubUrls.parseBaseUrl(url);
 
@@ -21,7 +21,7 @@ class GitHubUrlsTest {
 
     @Test
     void parseBaseUrl_invalid() {
-        final var url = "htp://localhost:8080";
+        final String url = "htp://localhost:8080";
 
         assertThatThrownBy(() -> GitHubUrls.parseBaseUrl(url))
             .isInstanceOf(GitHubInitException.class)

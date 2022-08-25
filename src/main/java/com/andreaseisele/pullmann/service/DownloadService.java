@@ -5,6 +5,7 @@ import com.andreaseisele.pullmann.download.DownloadState;
 import com.andreaseisele.pullmann.download.FileStore;
 import com.andreaseisele.pullmann.download.PullRequestDownload;
 import com.andreaseisele.pullmann.github.GitHubClient;
+import com.andreaseisele.pullmann.github.dto.PullRequest;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
@@ -49,12 +51,12 @@ public class DownloadService {
     }
 
     public void startDownload(PullRequestCoordinates coordinates) {
-        final var pullRequest = gitHubClient.pullRequestDetails(coordinates);
-        final var headSha = pullRequest.head().sha();
+        final PullRequest pullRequest = gitHubClient.pullRequestDetails(coordinates);
+        final String headSha = pullRequest.head().sha();
 
-        final var download = new PullRequestDownload(coordinates, headSha);
+        final PullRequestDownload download = new PullRequestDownload(coordinates, headSha);
 
-        var state = downloads.computeIfAbsent(download, k -> {
+        DownloadState state = downloads.computeIfAbsent(download, k -> {
             pullRequestDownloadExecutor.submit(() -> executeDownload(download));
             return DownloadState.RUNNING;
         });
@@ -96,7 +98,7 @@ public class DownloadService {
     private void executeDownload(PullRequestDownload pullRequestDownload) {
         logger.info("starting new pull request download [{}]", pullRequestDownload);
 
-        final var target = fileStore.getForPullRequest(pullRequestDownload);
+        final Path target = fileStore.getForPullRequest(pullRequestDownload);
         try {
             gitHubClient.downloadRepoContent(pullRequestDownload.coordinates().repositoryName(),
                 pullRequestDownload.headSha(),
@@ -114,13 +116,13 @@ public class DownloadService {
     }
 
     private void emitEvent() {
-        final var event = SseEmitter.event()
+        final Set<ResponseBodyEmitter.DataWithMediaType> event = SseEmitter.event()
             .id(UUID.randomUUID().toString())
             .data("downloads updated")
             .name("download update event")
             .build();
 
-        for (final var emitter : eventEmitters) {
+        for (final SseEmitter emitter : eventEmitters) {
             try {
                 emitter.send(event);
             } catch (IOException e) {

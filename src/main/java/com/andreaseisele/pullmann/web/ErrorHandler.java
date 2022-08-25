@@ -12,7 +12,7 @@ public class ErrorHandler {
 
     @ExceptionHandler
     public ModelAndView handleValidationError(ConstraintViolationException exception) {
-        final var model = Map.of("validationMessage", exception.getMessage());
+        final Map<String, String> model = Map.of("validationMessage", exception.getMessage());
         return new ModelAndView("validation-error", model, HttpStatus.BAD_REQUEST);
     }
 

@@ -1,6 +1,7 @@
 package com.andreaseisele.pullmann.github;
 
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -23,10 +24,10 @@ public class LinkParser {
             return Optional.empty();
         }
 
-        final var links = linkHeader.split(",");
+        final String[] links = linkHeader.split(",");
         for (String link : links) {
             if (link.contains("last")) {
-                final var matcher = PATTERN_LINK.matcher(link.trim());
+                final Matcher matcher = PATTERN_LINK.matcher(link.trim());
                 if (matcher.matches()) {
                     return Optional.of(matcher.group("url"));
                 }
@@ -40,7 +41,7 @@ public class LinkParser {
     public static Optional<Integer> getLastPage(String linkHeader) {
         return getLastRel(linkHeader)
             .map(url -> {
-                final var parsed = HttpUrl.parse(url);
+                final HttpUrl parsed = HttpUrl.parse(url);
                 if (parsed == null) {
                     return null;
                 }

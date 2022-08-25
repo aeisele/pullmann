@@ -3,7 +3,10 @@ package com.andreaseisele.pullmann.web;
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
+import com.andreaseisele.pullmann.github.result.MergeResult;
+import com.andreaseisele.pullmann.github.result.PullRequestResult;
 import com.andreaseisele.pullmann.service.PullRequestService;
+import java.util.Optional;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Positive;
 import org.springframework.http.HttpStatus;
@@ -37,13 +40,13 @@ public class PullRequestController {
         Model model) {
 
         if (repoFullName != null && !repoFullName.isBlank()) {
-            final var maybeRepositoryName = RepositoryName.parse(repoFullName);
+            final Optional<RepositoryName> maybeRepositoryName = RepositoryName.parse(repoFullName);
             if (maybeRepositoryName.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid repository full name");
             }
-            final var repositoryName = maybeRepositoryName.get();
+            final RepositoryName repositoryName = maybeRepositoryName.get();
 
-            final var result = pullRequestService.requestsForRepo(repositoryName, page);
+            final PullRequestResult result = pullRequestService.requestsForRepo(repositoryName, page);
             model.addAttribute("repoFullName", repoFullName);
             model.addAttribute("owner", repositoryName.owner());
             model.addAttribute("repo", repositoryName.repository());
@@ -63,7 +66,7 @@ public class PullRequestController {
                           @RequestParam(value = "closed", required = false) Boolean closed,
                           Model model) {
         final PullRequestCoordinates coordinates = buildCoordinates(owner, repo, number);
-        final var pullRequest = pullRequestService.requestDetails(coordinates);
+        final PullRequest pullRequest = pullRequestService.requestDetails(coordinates);
 
         model.addAttribute("pr", pullRequest);
         model.addAttribute("canMerge", Boolean.TRUE.equals(pullRequest.mergeable())
@@ -87,8 +90,8 @@ public class PullRequestController {
                               RedirectAttributes redirectAttributes) {
 
         final PullRequestCoordinates coordinates = buildCoordinates(owner, repo, number);
-        final var result = pullRequestService.merge(coordinates);
-        final var merged = result.isSuccessful();
+        final MergeResult result = pullRequestService.merge(coordinates);
+        final boolean merged = result.isSuccessful();
 
         redirectAttributes.addAttribute("merged", merged);
 
@@ -102,7 +105,7 @@ public class PullRequestController {
                               RedirectAttributes redirectAttributes) {
 
         final PullRequestCoordinates coordinates = buildCoordinates(owner, repo, number);
-        final var closed = pullRequestService.close(coordinates);
+        final boolean closed = pullRequestService.close(coordinates);
 
         redirectAttributes.addAttribute("closed", closed);
 

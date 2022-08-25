@@ -2,10 +2,14 @@ package com.andreaseisele.pullmann.web;
 
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
+import com.andreaseisele.pullmann.download.DownloadState;
 import com.andreaseisele.pullmann.download.PullRequestDownload;
 import com.andreaseisele.pullmann.service.DownloadService;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.Optional;
 import org.springframework.core.io.PathResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -33,7 +37,7 @@ public class DownloadController {
 
     @GetMapping
     public String list(Model model) {
-        final var downloads = downloadService.getDownloads();
+        final Map<PullRequestDownload, DownloadState> downloads = downloadService.getDownloads();
         model.addAttribute("downloads", downloads);
 
         return "downloads";
@@ -45,20 +49,20 @@ public class DownloadController {
                                                     @PathVariable("number") Long number,
                                                     @PathVariable("headSha") String headSha) throws IOException {
 
-        final var repositoryName = new RepositoryName(owner, repo);
-        final var coordinates = new PullRequestCoordinates(repositoryName, number);
-        final var download = new PullRequestDownload(coordinates, headSha);
+        final RepositoryName repositoryName = new RepositoryName(owner, repo);
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, number);
+        final PullRequestDownload download = new PullRequestDownload(coordinates, headSha);
 
-        final var zip = downloadService.findZip(download);
+        final Optional<Path> zip = downloadService.findZip(download);
         if (zip.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "unable to find pull request zip");
         }
 
-        final var contentDisposition = ContentDisposition.attachment()
+        final ContentDisposition contentDisposition = ContentDisposition.attachment()
             .filename(zip.get().getFileName().toString())
             .build();
 
-        final var headers = new HttpHeaders();
+        final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(new MediaType("application", "zip"));
         headers.setContentDisposition(contentDisposition);
         headers.setContentLength(Files.size(zip.get()));
@@ -72,9 +76,9 @@ public class DownloadController {
                             @PathVariable("number") Long number,
                             @PathVariable("headSha") String headSha) {
 
-        final var repositoryName = new RepositoryName(owner, repo);
-        final var coordinates = new PullRequestCoordinates(repositoryName, number);
-        final var download = new PullRequestDownload(coordinates, headSha);
+        final RepositoryName repositoryName = new RepositoryName(owner, repo);
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, number);
+        final PullRequestDownload download = new PullRequestDownload(coordinates, headSha);
 
         downloadService.deleteZip(download);
 
@@ -83,7 +87,7 @@ public class DownloadController {
 
     @GetMapping("/events")
     public SseEmitter downloadEvents() {
-        final var emitter = new SseEmitter();
+        final SseEmitter emitter = new SseEmitter();
         downloadService.registerEmitter(emitter);
         return emitter;
     }

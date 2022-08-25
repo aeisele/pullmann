@@ -2,6 +2,7 @@ package com.andreaseisele.pullmann.security;
 
 import com.andreaseisele.pullmann.github.error.GitHubAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ public class AuthenticationHolder {
      * @throws GitHubAuthenticationException if no authentication or an invalid one exists
      */
     public static UsernamePasswordAuthenticationToken currentAuthentication() {
-        final var authentication = SecurityContextHolder.getContext().getAuthentication();
+        final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof UsernamePasswordAuthenticationToken token) {
             return token;
         }

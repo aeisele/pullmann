@@ -40,8 +40,8 @@ public class UserResult {
         requireNonNull(user, "user must not be null");
         requireNonNull(accessToken, "access token must not be null");
 
-        final var expiry = parseExpiry(tokenExpiry);
-        final var scopes = parseScopeList(scopeList);
+        final LocalDateTime expiry = parseExpiry(tokenExpiry);
+        final Set<String> scopes = parseScopeList(scopeList);
         return new UserResult(user, scopes, expiry, accessToken);
     }
 

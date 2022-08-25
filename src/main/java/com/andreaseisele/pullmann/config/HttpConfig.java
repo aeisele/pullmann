@@ -23,7 +23,7 @@ public class HttpConfig {
 
     @Bean
     public Interceptor loggingInterceptor() {
-        var interceptor = new HttpLoggingInterceptor();
+        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(gitHubProperties.getLogLevel());
         interceptor.redactHeader(HttpHeaders.AUTHORIZATION);
         interceptor.redactHeader(HttpHeaders.COOKIE);
@@ -32,7 +32,7 @@ public class HttpConfig {
 
     @Bean
     public OkHttpClient githubHttpClient() {
-        final var  timeouts = gitHubProperties.getTimeouts();
+        final GitHubProperties.Timeouts timeouts = gitHubProperties.getTimeouts();
 
         return new OkHttpClient.Builder()
             .followRedirects(true)

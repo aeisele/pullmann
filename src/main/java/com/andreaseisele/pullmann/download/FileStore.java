@@ -11,8 +11,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -41,7 +43,7 @@ public class FileStore {
 
     // <root>/downloads/<owner>/<repo>/pulls/<number>/<head sha>/
     public Path getForPullRequest(PullRequestDownload pullRequestDownload) {
-        final var coordinates = pullRequestDownload.coordinates();
+        final PullRequestCoordinates coordinates = pullRequestDownload.coordinates();
 
         final Path directory = root.resolve(DIR_DOWNLOAD)
             .resolve(coordinates.repositoryName().owner())
@@ -54,7 +56,7 @@ public class FileStore {
     }
 
     public List<PullRequestDownload> findFinished() {
-        final var downloadDirectory = root.resolve(DIR_DOWNLOAD);
+        final Path downloadDirectory = root.resolve(DIR_DOWNLOAD);
         logger.info("looking for finished downloads in [{}]", downloadDirectory);
 
         if (!Files.exists(downloadDirectory)) {
@@ -62,7 +64,7 @@ public class FileStore {
             return Collections.emptyList();
         }
 
-        try (final var pathStream = Files.find(downloadDirectory,
+        try (final Stream<Path> pathStream = Files.find(downloadDirectory,
             6,
             (path, attrs) -> !attrs.isDirectory()
                 && path.getFileName().toString()
@@ -80,9 +82,9 @@ public class FileStore {
     }
 
     public Optional<Path> findZip(PullRequestDownload pullRequestDownload) {
-        final var prDirectory = getForPullRequest(pullRequestDownload);
+        final Path prDirectory = getForPullRequest(pullRequestDownload);
 
-        try (var pathStream = Files.find(prDirectory, 1, (path, attrs) -> !attrs.isDirectory()
+        try (Stream<Path> pathStream = Files.find(prDirectory, 1, (path, attrs) -> !attrs.isDirectory()
             && path.getFileName().toString()
             .toLowerCase(Locale.ROOT)
             .endsWith(EXT_ZIP))) {
@@ -96,7 +98,7 @@ public class FileStore {
     }
 
     public void deleteZip(PullRequestDownload pullRequestDownload) {
-        final var zip = findZip(pullRequestDownload);
+        final Optional<Path> zip = findZip(pullRequestDownload);
         if (zip.isEmpty()) {
             logger.warn("tried to delete non-existing zip for [{}]", pullRequestDownload);
             return;
@@ -110,7 +112,7 @@ public class FileStore {
     }
 
     private Path initRootDirectory() {
-        final var location = gitHubProperties.getDownload().getLocation();
+        final Resource location = gitHubProperties.getDownload().getLocation();
         try {
             return Files.createDirectories(location.getFile().toPath());
         } catch (IOException e) {
@@ -120,14 +122,14 @@ public class FileStore {
 
     static Optional<PullRequestDownload> tryReconstructDownload(Path zipPath) {
         try {
-            final var nameCount = zipPath.getNameCount();
-            final var headSha = zipPath.getName(nameCount + OFFSET_PR_HEAD_SHA).toString();
-            final var number = zipPath.getName(nameCount + OFFSET_PR_NUMBER).toString();
-            final var repository = zipPath.getName(nameCount + OFFSET_PR_REPO).toString();
-            final var owner = zipPath.getName(nameCount + OFFSET_PR_OWNER).toString();
+            final int nameCount = zipPath.getNameCount();
+            final String headSha = zipPath.getName(nameCount + OFFSET_PR_HEAD_SHA).toString();
+            final String number = zipPath.getName(nameCount + OFFSET_PR_NUMBER).toString();
+            final String repository = zipPath.getName(nameCount + OFFSET_PR_REPO).toString();
+            final String owner = zipPath.getName(nameCount + OFFSET_PR_OWNER).toString();
 
-            final var repositoryName = new RepositoryName(owner, repository);
-            final var coordinates = new PullRequestCoordinates(repositoryName, Long.parseLong(number));
+            final RepositoryName repositoryName = new RepositoryName(owner, repository);
+            final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, Long.parseLong(number));
             return Optional.of(new PullRequestDownload(coordinates, headSha));
         } catch (RuntimeException rt) {
             logger.error("unable to reconstruct download from zip path [{}]", zipPath);

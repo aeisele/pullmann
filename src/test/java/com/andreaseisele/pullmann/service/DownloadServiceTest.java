@@ -3,8 +3,11 @@ package com.andreaseisele.pullmann.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 
+import com.andreaseisele.pullmann.download.DownloadState;
 import com.andreaseisele.pullmann.download.FileStore;
+import com.andreaseisele.pullmann.download.PullRequestDownload;
 import com.andreaseisele.pullmann.github.GitHubClient;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,13 +30,13 @@ class DownloadServiceTest {
 
     @BeforeEach
     void setUp() {
-        final var pullRequestDownloadExecutor = new TaskExecutorAdapter(Executors.newSingleThreadExecutor());
+        final TaskExecutorAdapter pullRequestDownloadExecutor = new TaskExecutorAdapter(Executors.newSingleThreadExecutor());
         this.service = new DownloadService(gitHubClient, pullRequestDownloadExecutor, fileStore);
     }
 
     @Test
     void getDownloads_empty() {
-        final var downloads = service.getDownloads();
+        final Map<PullRequestDownload, DownloadState> downloads = service.getDownloads();
 
         assertThat(downloads).isEmpty();
     }

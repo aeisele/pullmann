@@ -3,6 +3,7 @@ package com.andreaseisele.pullmann.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,7 +24,7 @@ class RepositoryNameTest {
     @ParameterizedTest
     @MethodSource("argsForOk")
     void parseOk(String fullName, String expectedOwner, String expectedRepo) {
-        final var parsed = RepositoryName.parse(fullName);
+        final Optional<RepositoryName> parsed = RepositoryName.parse(fullName);
 
         assertThat(parsed).hasValueSatisfying(name -> {
             assertThat(name.owner()).isEqualTo(expectedOwner);
@@ -33,7 +34,7 @@ class RepositoryNameTest {
 
     @Test
     void parseFail() {
-        final var parsed = RepositoryName.parse("not a repo full name");
+        final Optional<RepositoryName> parsed = RepositoryName.parse("not a repo full name");
 
         assertThat(parsed).isEmpty();
     }

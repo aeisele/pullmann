@@ -8,6 +8,7 @@ import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
 import com.andreaseisele.pullmann.github.GitHubProperties;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -33,12 +34,13 @@ class FileStoreTest {
 
     @Test
     void getForPullRequest() {
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var coordinates = new PullRequestCoordinates(repositoryName, 1);
-        final var download = new PullRequestDownload(coordinates, "6dcb09b5b57875f334f61aebed695e2e4193db5e");
-        final var fileStore = new FileStore(properties);
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1);
+        final PullRequestDownload
+            download = new PullRequestDownload(coordinates, "6dcb09b5b57875f334f61aebed695e2e4193db5e");
+        final FileStore fileStore = new FileStore(properties);
 
-        final var path = fileStore.getForPullRequest(download);
+        final Path path = fileStore.getForPullRequest(download);
 
         assertThat(path)
             .exists()
@@ -47,7 +49,7 @@ class FileStoreTest {
 
     @Test
     void reconstructDownload() {
-        final var zipPath = tempDir.resolve("downloads")
+        final Path zipPath = tempDir.resolve("downloads")
             .resolve("octocat")
             .resolve("Hello-World")
             .resolve("pulls")
@@ -55,7 +57,7 @@ class FileStoreTest {
             .resolve("6dcb09b5b57875f334f61aebed695e2e4193db5e")
             .resolve("aeisele-pullman-playgournd-5bed3c6.zip");
 
-        final var reconstructed = FileStore.tryReconstructDownload(zipPath);
+        final Optional<PullRequestDownload> reconstructed = FileStore.tryReconstructDownload(zipPath);
 
         assertThat(reconstructed).hasValueSatisfying(download -> {
             assertThat(download.headSha()).isEqualTo("6dcb09b5b57875f334f61aebed695e2e4193db5e");
@@ -67,20 +69,20 @@ class FileStoreTest {
 
     @Test
     void reconstructDownload_invalid() {
-        final var zipPath = tempDir.resolve("downloads")
+        final Path zipPath = tempDir.resolve("downloads")
             .resolve("some")
             .resolve("wrong")
             .resolve("path")
             .resolve("pr.zip");
 
-        final var reconstructed = FileStore.tryReconstructDownload(zipPath);
+        final Optional<PullRequestDownload> reconstructed = FileStore.tryReconstructDownload(zipPath);
 
         assertThat(reconstructed).isEmpty();
     }
 
     @Test
     void reconstructDownload_invalidNumber() {
-        final var zipPath = tempDir.resolve("downloads")
+        final Path zipPath = tempDir.resolve("downloads")
             .resolve("octocat")
             .resolve("Hello-World")
             .resolve("pulls")
@@ -88,7 +90,7 @@ class FileStoreTest {
             .resolve("6dcb09b5b57875f334f61aebed695e2e4193db5e")
             .resolve("pr.zip");
 
-        final var reconstructed = FileStore.tryReconstructDownload(zipPath);
+        final Optional<PullRequestDownload> reconstructed = FileStore.tryReconstructDownload(zipPath);
 
         assertThat(reconstructed).isEmpty();
     }

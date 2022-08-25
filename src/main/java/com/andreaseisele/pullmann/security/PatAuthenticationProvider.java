@@ -4,8 +4,10 @@ import static java.util.Objects.requireNonNull;
 
 
 import com.andreaseisele.pullmann.github.GitHubClient;
+import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
 import com.andreaseisele.pullmann.github.result.UserResult;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,8 +46,8 @@ public class PatAuthenticationProvider implements AuthenticationProvider {
 
         if (authentication instanceof UsernamePasswordAuthenticationToken token) {
             try {
-                final var result = gitHubClient.currentUserViaToken(token);
-                final var userDetails = createUserDetails(result);
+                final UserResult result = gitHubClient.currentUserViaToken(token);
+                final GitHubUserDetails userDetails = createUserDetails(result);
                 return createAuthentication(token, userDetails);
             } catch (GitHubHttpStatusException hse) {
                 if (HttpStatus.UNAUTHORIZED.value() == hse.getHttpStatus()) {
@@ -61,8 +63,8 @@ public class PatAuthenticationProvider implements AuthenticationProvider {
     }
 
     private static GitHubUserDetails createUserDetails(UserResult result) {
-        final var user = result.getUser();
-        final var authorities = result.getScopes().stream()
+        final User user = result.getUser();
+        final Set<SimpleGrantedAuthority> authorities = result.getScopes().stream()
             .map(SimpleGrantedAuthority::new)
             .collect(Collectors.toSet());
 
@@ -76,7 +78,7 @@ public class PatAuthenticationProvider implements AuthenticationProvider {
 
     private Authentication createAuthentication(UsernamePasswordAuthenticationToken token,
                                                 GitHubUserDetails userDetails) {
-        final var authentication = new UsernamePasswordAuthenticationToken(token.getPrincipal(),
+        final UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(token.getPrincipal(),
             token.getCredentials(),
             userDetails.getAuthorities());
         authentication.setDetails(userDetails);

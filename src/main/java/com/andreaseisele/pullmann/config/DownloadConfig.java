@@ -5,6 +5,7 @@ import org.springframework.boot.task.TaskExecutorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 
 @Configuration
@@ -18,7 +19,7 @@ public class DownloadConfig {
 
     @Bean
     public AsyncTaskExecutor pullRequestDownloadExecutor(TaskExecutorBuilder builder) {
-        final var executor = builder.threadNamePrefix("downloader")
+        final ThreadPoolTaskExecutor executor = builder.threadNamePrefix("downloader")
             .corePoolSize(gitHubProperties.getDownload().getMaxSimultaneous())
             .build();
         executor.initialize();

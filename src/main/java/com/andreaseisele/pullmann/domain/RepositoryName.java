@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,7 @@ public record RepositoryName(String owner, String repository) {
      * @return the parse result if successful
      */
     public static Optional<RepositoryName> parse(String fullName) {
-        final var matcher = PATTERN_REPO_FULL_NAME.matcher(fullName.trim());
+        final Matcher matcher = PATTERN_REPO_FULL_NAME.matcher(fullName.trim());
         if (matcher.matches()) {
             return Optional.of(new RepositoryName(matcher.group("owner"), matcher.group("repo")));
         }

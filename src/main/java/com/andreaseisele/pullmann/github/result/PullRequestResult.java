@@ -4,6 +4,7 @@ import com.andreaseisele.pullmann.github.LinkParser;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class PullRequestResult {
 
@@ -18,7 +19,7 @@ public class PullRequestResult {
     }
 
     public static PullRequestResult of(List<PullRequest> pullRequests, int page, String linkInfo) {
-        final var maxPage = LinkParser.getLastPage(linkInfo);
+        final Optional<Integer> maxPage = LinkParser.getLastPage(linkInfo);
         return new PullRequestResult(pullRequests, page, maxPage.orElse(page));
     }
 

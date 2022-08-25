@@ -16,18 +16,28 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.andreaseisele.pullmann.domain.PullRequestCoordinates;
 import com.andreaseisele.pullmann.domain.RepositoryName;
+import com.andreaseisele.pullmann.github.dto.BranchInfo;
+import com.andreaseisele.pullmann.github.dto.MergeResponse;
 import com.andreaseisele.pullmann.github.dto.PullRequest;
+import com.andreaseisele.pullmann.github.dto.Repository;
+import com.andreaseisele.pullmann.github.dto.User;
 import com.andreaseisele.pullmann.github.error.GitHubHttpStatusException;
+import com.andreaseisele.pullmann.github.result.FileResult;
+import com.andreaseisele.pullmann.github.result.MergeResult;
+import com.andreaseisele.pullmann.github.result.PullRequestResult;
 import com.andreaseisele.pullmann.github.result.UserResult;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import java.io.IOException;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,9 +71,9 @@ class GitHubClientIntegrationTest {
 
     @Test
     void currentUserViaToken_ok() {
-        final var username = "user";
-        final var pat = "d404bfb5-465e-41f8-abe6-98137d84db16";
-        final var token = new UsernamePasswordAuthenticationToken(username, pat);
+        final String username = "user";
+        final String pat = "d404bfb5-465e-41f8-abe6-98137d84db16";
+        final UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, pat);
 
         stubFor(get("/user")
             .withBasicAuth(username, pat)
@@ -77,10 +87,10 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var result = gitHubClient.currentUserViaToken(token);
+        final UserResult result = gitHubClient.currentUserViaToken(token);
         assertThat(result).isNotNull();
 
-        final var user = result.getUser();
+        final User user = result.getUser();
         assertThat(user).isNotNull();
         assertThat(user.id()).isEqualTo(1234567);
         assertThat(user.login()).isEqualTo("testuser");
@@ -95,9 +105,9 @@ class GitHubClientIntegrationTest {
 
     @Test
     void currentUserViaToken_unauthorized() {
-        final var username = "user";
-        final var pat = "wrong";
-        final var token = new UsernamePasswordAuthenticationToken(username, pat);
+        final String username = "user";
+        final String pat = "wrong";
+        final UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, pat);
 
         stubFor(get("/user")
             .withBasicAuth(username, "wrong")
@@ -128,7 +138,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var repositories = gitHubClient.userRepos();
+        final List<Repository> repositories = gitHubClient.userRepos();
 
         assertThat(repositories)
             .hasSize(1)
@@ -143,10 +153,10 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void pullRequestsForRepo_ok() {
-        final var linkHeaderValue =
+        final String linkHeaderValue =
             "<http://localhost/repositories/1/pulls?page=2>; rel=\"next\", <http://localhost/repositories/1/pulls?page=11>; rel=\"last\"";
 
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
 
         stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls"))
             .withQueryParam("page", equalTo("1"))
@@ -160,13 +170,13 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var result = gitHubClient.pullRequestsForRepo(repositoryName, 1);
+        final PullRequestResult result = gitHubClient.pullRequestsForRepo(repositoryName, 1);
 
         assertThat(result).isNotNull();
         assertThat(result.getPage()).isEqualTo(1);
         assertThat(result.getMaxPages()).isEqualTo(11);
 
-        final var pullRequests = result.getPullRequests();
+        final List<PullRequest> pullRequests = result.getPullRequests();
         assertThat(pullRequests)
             .hasSize(1)
             .anySatisfy(pr -> {
@@ -177,12 +187,12 @@ class GitHubClientIntegrationTest {
                 assertThat(pr.state()).isEqualTo(PullRequest.State.OPEN);
                 assertThat(pr.user()).isNotNull();
 
-                final var head = pr.head();
+                final BranchInfo head = pr.head();
                 assertThat(head.label()).isEqualTo("octocat:new-topic");
                 assertThat(head.ref()).isEqualTo("new-topic");
                 assertThat(head.sha()).isEqualTo("6dcb09b5b57875f334f61aebed695e2e4193db5e");
 
-                final var base = pr.base();
+                final BranchInfo base = pr.base();
                 assertThat(base.label()).isEqualTo("octocat:master");
                 assertThat(base.ref()).isEqualTo("master");
                 assertThat(base.sha()).isEqualTo("6dcb09b5b57875f334f61aebed695e2e4193db5e");
@@ -192,7 +202,7 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void pullRequestsForRepo_notFound() {
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
 
         stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls"))
             .withQueryParam("page", equalTo("1"))
@@ -205,7 +215,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var result = gitHubClient.pullRequestsForRepo(repositoryName, 1);
+        final PullRequestResult result = gitHubClient.pullRequestsForRepo(repositoryName, 1);
 
         assertThat(result).isNotNull();
         assertThat(result.getPullRequests()).isEmpty();
@@ -214,8 +224,8 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void pullRequestDetails_ok() {
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1347);
 
         stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347"))
             .withBasicAuth("test_user", "test")
@@ -227,7 +237,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var pullRequest = gitHubClient.pullRequestDetails(coordinates);
+        final PullRequest pullRequest = gitHubClient.pullRequestDetails(coordinates);
 
         assertThat(pullRequest).isNotNull();
         assertThat(pullRequest.id()).isEqualTo(1);
@@ -242,10 +252,10 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void merge_ok() {
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
-        final var message = "test message";
-        final var sha = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final String message = "test message";
+        final String sha = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
 
         stubFor(put(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347/merge"))
             .withBasicAuth("test_user", "test")
@@ -263,13 +273,13 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var result = gitHubClient.merge(coordinates, message, sha);
+        final MergeResult result = gitHubClient.merge(coordinates, message, sha);
 
         assertThat(result).isNotNull();
         assertThat(result.isSuccessful()).isTrue();
         assertThat(result.getResponse()).isNotNull();
 
-        final var response = result.getResponse();
+        final MergeResponse response = result.getResponse();
         assertThat(response.merged()).isTrue();
         assertThat(response.sha()).isEqualTo("6dcb09b5b57875f334f61aebed695e2e4193db5e");
         assertThat(response.message()).isEqualTo("Pull Request successfully merged");
@@ -279,10 +289,10 @@ class GitHubClientIntegrationTest {
     @ValueSource(ints = {404, 405, 409})
     @ParameterizedTest
     void merge_failure(int badStatus) {
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
-        final var message = "test message";
-        final var sha = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final String message = "test message";
+        final String sha = "6dcb09b5b57875f334f61aebed695e2e4193db5e";
 
         stubFor(put(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347/merge"))
             .withBasicAuth("test_user", "test")
@@ -300,7 +310,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var result = gitHubClient.merge(coordinates, message, sha);
+        final MergeResult result = gitHubClient.merge(coordinates, message, sha);
 
         assertThat(result).isNotNull();
         assertThat(result.isSuccessful()).isFalse();
@@ -309,8 +319,8 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void close_ok() {
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1347);
 
         stubFor(patch(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347"))
             .withBasicAuth("test_user", "test")
@@ -327,7 +337,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var success = gitHubClient.close(coordinates);
+        final boolean success = gitHubClient.close(coordinates);
 
         assertThat(success).isTrue();
     }
@@ -336,8 +346,8 @@ class GitHubClientIntegrationTest {
     @ParameterizedTest
     @ValueSource(ints = {403, 404, 422})
     void close_failure(int badStatus) {
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1347);
 
         stubFor(patch(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347"))
             .withBasicAuth("test_user", "test")
@@ -354,7 +364,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var success = gitHubClient.close(coordinates);
+        final boolean success = gitHubClient.close(coordinates);
 
         assertThat(success).isFalse();
     }
@@ -362,11 +372,11 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void files_ok() {
-        final var linkHeaderValue =
+        final String linkHeaderValue =
             "<http://localhost/repositories/1/pulls/1347/files?page=2>; rel=\"next\", <http://localhost/repositories/1/pulls/1347/?page=11>; rel=\"last\"";
 
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var coordinates = new PullRequestCoordinates(repositoryName, 1347);
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final PullRequestCoordinates coordinates = new PullRequestCoordinates(repositoryName, 1347);
 
         stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/pulls/1347/files"))
             .withBasicAuth("test_user", "test")
@@ -381,7 +391,7 @@ class GitHubClientIntegrationTest {
             )
         );
 
-        final var result = gitHubClient.files(coordinates, 1);
+        final FileResult result = gitHubClient.files(coordinates, 1);
 
         assertThat(result).isNotNull();
         assertThat(result.getPage()).isEqualTo(1);
@@ -401,14 +411,14 @@ class GitHubClientIntegrationTest {
     @WithMockUser(username = "test_user", password = "test")
     @Test
     void downloadRepoContent_ok(WireMockRuntimeInfo wireMockRuntimeInfo) throws IOException {
-        final var zipPath = "/octocat/Hello-World/legacy.zip/5bed3c62446116728f65e3809210bb605f11e687";
-        final var ref = "5bed3c62446116728f65e3809210bb605f11e687";
-        final var repositoryName = new RepositoryName("octocat", "Hello-World");
-        final var zipName = "aeisele-pullman-playgournd-5bed3c6.zip";
-        final var contentDisposition = ContentDisposition.attachment()
+        final String zipPath = "/octocat/Hello-World/legacy.zip/5bed3c62446116728f65e3809210bb605f11e687";
+        final String ref = "5bed3c62446116728f65e3809210bb605f11e687";
+        final RepositoryName repositoryName = new RepositoryName("octocat", "Hello-World");
+        final String zipName = "aeisele-pullman-playgournd-5bed3c6.zip";
+        final ContentDisposition contentDisposition = ContentDisposition.attachment()
             .filename(zipName)
             .build();
-        final var fileContent = new byte[2048];
+        final byte[] fileContent = new byte[2048];
         ThreadLocalRandom.current().nextBytes(fileContent);
 
         stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/zipball/5bed3c62446116728f65e3809210bb605f11e687"))
@@ -423,23 +433,23 @@ class GitHubClientIntegrationTest {
                 .withHeader(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
                 .withBody(fileContent)));
 
-        try (final var fs = Jimfs.newFileSystem(Configuration.unix())) {
-            final var directory = fs.getPath("dir");
+        try (final FileSystem fs = Jimfs.newFileSystem(Configuration.unix())) {
+            final Path directory = fs.getPath("dir");
             Files.createDirectories(directory);
 
-            final var success = gitHubClient.downloadRepoContent(repositoryName, ref, directory);
+            final boolean success = gitHubClient.downloadRepoContent(repositoryName, ref, directory);
             assertThat(success).isTrue();
 
-            final var downloaded = directory.resolve(zipName);
+            final Path downloaded = directory.resolve(zipName);
             assertThat(downloaded).exists();
 
-            final var contentDownloaded = Files.readAllBytes(downloaded);
+            final byte[] contentDownloaded = Files.readAllBytes(downloaded);
             assertThat(contentDownloaded).isEqualTo(fileContent);
         }
     }
 
     private String expirationIn3Months() {
-        final var dateTime = ZonedDateTime.of(LocalDateTime.now().plusMonths(3), ZoneId.of("UTC"));
+        final ZonedDateTime dateTime = ZonedDateTime.of(LocalDateTime.now().plusMonths(3), ZoneId.of("UTC"));
         return UserResult.EXPIRATION_FORMATTER.format(dateTime);
     }
 }

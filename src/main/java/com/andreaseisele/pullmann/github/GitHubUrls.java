@@ -15,7 +15,7 @@ public class GitHubUrls {
     private static final String PATH_PULL_REQUEST_DETAILS = PATH_PULL_REQUESTS + "/{pullNumber}";
     private static final String PATH_PULL_REQUEST_MERGE = PATH_PULL_REQUEST_DETAILS + "/merge";
     private static final String PATH_PULL_REQUEST_FILES = PATH_PULL_REQUEST_DETAILS + "/files";
-    private static final String PATH_REPO_CONTENTS = "/repos/{owner}/{repository}/zipball/{ref}";
+    private static final String PATH_REPO_CONTENTS = "repos/{owner}/{repository}/zipball/{ref}";
 
     private final GitHubProperties properties;
 
@@ -75,7 +75,7 @@ public class GitHubUrls {
     }
 
     private HttpUrl.Builder builderFor(String path) {
-        final var resolved = parseBaseUrl().resolve(path);
+        final HttpUrl resolved = parseBaseUrl().resolve(path);
         if (resolved == null) {
             throw new GitHubInitException("unable to resolve base url against path " + path);
         }
@@ -87,7 +87,7 @@ public class GitHubUrls {
     }
 
     static HttpUrl parseBaseUrl(String baseUrl) {
-        final var parsed = HttpUrl.parse(baseUrl);
+        final HttpUrl parsed = HttpUrl.parse(baseUrl);
         if (parsed == null) {
             throw new GitHubInitException("unable to parse configured base URL " + baseUrl);
         }

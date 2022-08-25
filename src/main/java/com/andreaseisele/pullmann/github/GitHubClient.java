@@ -26,6 +26,7 @@ import com.andreaseisele.pullmann.security.AuthenticationHolder;
 import com.andreaseisele.pullmann.security.GitHubUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.CollectionType;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,6 +34,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.function.Function;
 import okhttp3.Credentials;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -73,10 +75,10 @@ public class GitHubClient {
      * @throws com.andreaseisele.pullmann.github.error.GitHubException on any error
      */
     public UserResult currentUserViaToken(UsernamePasswordAuthenticationToken token) {
-        final var credentials = buildCredentials(token);
-        final var accessToken = (String) token.getCredentials();
-        final var url = urls.currentUser();
-        final var request = new Request.Builder()
+        final String credentials = buildCredentials(token);
+        final String accessToken = (String) token.getCredentials();
+        final HttpUrl url = urls.currentUser();
+        final Request request = new Request.Builder()
             .url(url)
             .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
             .header(HttpHeaders.AUTHORIZATION, credentials)
@@ -86,7 +88,7 @@ public class GitHubClient {
             "currentUserViaToken",
             request,
             response -> {
-                final var user = unmarshall(response.body(), User.class);
+                final User user = unmarshall(response.body(), User.class);
                 return UserResult.of(user,
                     accessToken,
                     response.header(GitHubHeaders.OAUTH_SCOPES),
@@ -95,9 +97,9 @@ public class GitHubClient {
     }
 
     public List<Repository> userRepos() {
-        final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.userRepos();
-        final var request = new Request.Builder()
+        final String credentials = buildCredentialsFromCurrentAuth();
+        final HttpUrl url = urls.userRepos();
+        final Request request = new Request.Builder()
             .url(url)
             .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
             .header(HttpHeaders.AUTHORIZATION, credentials)
@@ -110,10 +112,10 @@ public class GitHubClient {
     }
 
     public PullRequestResult pullRequestsForRepo(RepositoryName repositoryName, int page) {
-        final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.pullRequests(repositoryName, page, "all");
+        final String credentials = buildCredentialsFromCurrentAuth();
+        final HttpUrl url = urls.pullRequests(repositoryName, page, "all");
 
-        final var request = new Request.Builder()
+        final Request request = new Request.Builder()
             .url(url)
             .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
             .header(HttpHeaders.AUTHORIZATION, credentials)
@@ -123,7 +125,7 @@ public class GitHubClient {
             "pullRequestsForRepo",
             request,
             response -> { // OK
-                final var pullRequests = unmarshallList(response.body(), PullRequest.class);
+                final List<PullRequest> pullRequests = unmarshallList(response.body(), PullRequest.class);
                 return PullRequestResult.of(pullRequests, page, response.header(HttpHeaders.LINK));
             },
             response -> { // BAD
@@ -136,10 +138,10 @@ public class GitHubClient {
     }
 
     public PullRequest pullRequestDetails(PullRequestCoordinates coordinates) {
-        final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.pullRequestDetails(coordinates);
+        final String credentials = buildCredentialsFromCurrentAuth();
+        final HttpUrl url = urls.pullRequestDetails(coordinates);
 
-        final var request = new Request.Builder()
+        final Request request = new Request.Builder()
             .url(url)
             .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
             .header(HttpHeaders.AUTHORIZATION, credentials)
@@ -152,12 +154,12 @@ public class GitHubClient {
     }
 
     public MergeResult merge(PullRequestCoordinates coordinates, String message, String sha) {
-        final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.pullRequestMerge(coordinates);
+        final String credentials = buildCredentialsFromCurrentAuth();
+        final HttpUrl url = urls.pullRequestMerge(coordinates);
 
-        final var body = marshall(new MergeRequest(message, sha));
+        final String body = marshall(new MergeRequest(message, sha));
 
-        final var request = new Request.Builder()
+        final Request request = new Request.Builder()
             .url(url)
             .put(RequestBody.create(body, okhttp3.MediaType.get(MediaType.APPLICATION_JSON_VALUE)))
             .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
@@ -176,12 +178,12 @@ public class GitHubClient {
     }
 
     public boolean close(PullRequestCoordinates coordinates) {
-        final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.pullRequestDetails(coordinates);
+        final String credentials = buildCredentialsFromCurrentAuth();
+        final HttpUrl url = urls.pullRequestDetails(coordinates);
 
-        final var body = marshall(new UpdateRequest(PullRequest.State.CLOSED));
+        final String body = marshall(new UpdateRequest(PullRequest.State.CLOSED));
 
-        final var request = new Request.Builder()
+        final Request request = new Request.Builder()
             .url(url)
             .patch(RequestBody.create(body, okhttp3.MediaType.get(MediaType.APPLICATION_JSON_VALUE)))
             .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
@@ -200,10 +202,10 @@ public class GitHubClient {
     }
 
     public FileResult files(PullRequestCoordinates coordinates, int page) {
-        final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.pullRequestFiles(coordinates, page, 100);
+        final String credentials = buildCredentialsFromCurrentAuth();
+        final HttpUrl url = urls.pullRequestFiles(coordinates, page, 100);
 
-        final var request = new Request.Builder()
+        final Request request = new Request.Builder()
             .url(url)
             .get()
             .header(HttpHeaders.ACCEPT, GitHubMediaTypes.JSON)
@@ -214,7 +216,7 @@ public class GitHubClient {
             "files",
             request,
             response -> {
-                final var files = unmarshallList(response.body(), File.class);
+                final List<File> files = unmarshallList(response.body(), File.class);
                 return FileResult.of(files, page, response.header(HttpHeaders.LINK));
             });
     }
@@ -227,15 +229,15 @@ public class GitHubClient {
      * @throws GitHubDownloadException when the download fails due to IO errors
      */
     public boolean downloadRepoContent(RepositoryName repositoryName, String ref, Path targetDir) {
-        final var credentials = buildCredentialsFromCurrentAuth();
-        final var url = urls.repositoryContents(repositoryName, ref);
+        final String credentials = buildCredentialsFromCurrentAuth();
+        final HttpUrl url = urls.repositoryContents(repositoryName, ref);
 
         if (!Files.isDirectory(targetDir)) {
             logger.error("target directory does not exist or is no directory [{}]", targetDir);
             return false;
         }
 
-        final var request = new Request.Builder()
+        final Request request = new Request.Builder()
             .url(url)
             .get()
             .header(HttpHeaders.AUTHORIZATION, credentials)
@@ -243,7 +245,7 @@ public class GitHubClient {
             .build();
 
         // large downloads can take longer than call timeout
-        final var clientWithoutTimeout = httpClient.newBuilder()
+        final OkHttpClient clientWithoutTimeout = httpClient.newBuilder()
             .callTimeout(Duration.ZERO)
             .build();
 
@@ -276,7 +278,7 @@ public class GitHubClient {
         requireNonNull(successHandler, "success handler must not be null");
         requireNonNull(badStatusHandler, "bad status handler must not be null");
 
-        try (final var response = httpClient.newCall(request).execute()) {
+        try (final Response response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
                 return successHandler.apply(response);
             } else {
@@ -289,7 +291,7 @@ public class GitHubClient {
     }
 
     private void logErrorResponse(String callName, Response errorResponse) {
-        final var error = tryReadError(errorResponse.body());
+        final ErrorMessage error = tryReadError(errorResponse.body());
         if (error != null) {
             logger.warn("call '{}' was not OK: status={}, message={}, documentation-url={}",
                 callName,
@@ -329,7 +331,7 @@ public class GitHubClient {
         if (body == null) {
             throw new GitHubExecutionException("tried to unmarshall a null body");
         }
-        final var collectionType = objectMapper.getTypeFactory().constructCollectionType(List.class, type);
+        final CollectionType collectionType = objectMapper.getTypeFactory().constructCollectionType(List.class, type);
         try {
             return objectMapper.readValue(body.charStream(), collectionType);
         } catch (IOException e) {
@@ -346,13 +348,13 @@ public class GitHubClient {
     }
 
     private void downloadToTarget(Response response, Path targetDir) {
-        final var body = response.body();
+        final ResponseBody body = response.body();
         if (body == null) {
             throw new GitHubExecutionException("tried to download a null body");
         }
 
-        final var filename = extractFilename(response);
-        final var target = targetDir.resolve(filename);
+        final String filename = extractFilename(response);
+        final Path target = targetDir.resolve(filename);
 
         try {
             Files.copy(body.byteStream(), target);
@@ -376,8 +378,8 @@ public class GitHubClient {
     }
 
     private static String buildCredentials(UsernamePasswordAuthenticationToken token) {
-        final var username = extractUsername(token);
-        final var accessToken = extractAccessToken(token);
+        final String username = extractUsername(token);
+        final String accessToken = extractAccessToken(token);
 
         if (username == null || accessToken == null) {
             throw new GitHubAuthenticationException("unsupported principal or credential type in security context");

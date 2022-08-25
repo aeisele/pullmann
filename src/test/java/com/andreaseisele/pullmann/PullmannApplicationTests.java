@@ -15,7 +15,7 @@ class PullmannApplicationTests {
 
     @Test
     void contextLoads(ApplicationContext applicationContext) {
-        final var properties = applicationContext.getBean(GitHubProperties.class);
+        final GitHubProperties properties = applicationContext.getBean(GitHubProperties.class);
         assertThat(properties).as("configuration properties bean").isNotNull();
     }
 
